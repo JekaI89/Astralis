@@ -36,3 +36,20 @@ services:
         sync: false
       - key: ALLOWED_ORIGINS
         sync: false
+
+  - type: worker
+    name: astralis-bot
+    runtime: node
+    region: frankfurt
+    plan: free
+    buildCommand: pnpm install && pnpm --filter @astralis/types build && pnpm --filter @astralis/bot build
+    startCommand: pnpm --filter @astralis/bot start
+    envVars:
+      - key: NODE_VERSION
+        value: 22.15.0
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_WEBHOOK_SECRET
+        sync: false
+      - key: NEXT_PUBLIC_APP_URL
+        sync: false
