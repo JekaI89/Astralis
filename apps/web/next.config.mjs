@@ -1,11 +1,9 @@
-import type { NextConfig } from 'next'
-
-const config: NextConfig = {
+/** @type {import('next').NextConfig} */
+const config = {
   transpilePackages: ['@astralis/core', '@astralis/types'],
   images: {
     domains: ['t.me', 'cdn.astralis.io'],
   },
-  // Разрешаем встраивание в Telegram WebView
   async headers() {
     return [
       {
