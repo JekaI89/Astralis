@@ -1,17 +1,19 @@
 import { Injectable, OnModuleInit, Logger } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { Telegraf, Context } from 'telegraf'
+import { AuthService } from '../auth/auth.service'
 
 @Injectable()
 export class TelegramService implements OnModuleInit {
   private readonly logger = new Logger(TelegramService.name)
   private bot: Telegraf | null = null
   private readonly appUrl: string
-  private readonly apiUrl: string
 
-  constructor(private readonly config: ConfigService) {
+  constructor(
+    private readonly config: ConfigService,
+    private readonly authService: AuthService,
+  ) {
     this.appUrl = this.config.get<string>('NEXT_PUBLIC_APP_URL') ?? 'https://novasoul-web.onrender.com'
-    this.apiUrl = this.config.get<string>('API_URL') ?? 'http://localhost:4000'
   }
 
   async onModuleInit() {
@@ -61,18 +63,11 @@ export class TelegramService implements OnModuleInit {
       if (!user) return
 
       try {
-        await fetch(`${this.apiUrl}/auth/telegram-confirm`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            code,
-            tgUser: {
-              id: user.id,
-              first_name: user.first_name,
-              last_name: user.last_name,
-              username: user.username,
-            },
-          }),
+        await this.authService.confirmTelegramAuth(code, {
+          id: user.id,
+          first_name: user.first_name,
+          last_name: user.last_name,
+          username: user.username,
         })
         await ctx.reply(
           `✅ <b>Авторизация успешна!</b>\n\nВернитесь в приложение — оно уже вас узнало.`,
