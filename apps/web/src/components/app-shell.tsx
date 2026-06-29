@@ -67,6 +67,11 @@ export function AppShell() {
   const [authLoading, setAuthLoading] = useState(false)
   const [onboardStep, setOnboardStep] = useState(0)
   const [tgAuthCode, setTgAuthCode] = useState(() => sessionStorage.getItem('tg_auth_code') ?? '')
+  const [userMeta, setUserMeta] = useState<{ email: string | null; telegramUsername: string | null; hasTelegram: boolean } | null>(null)
+  const [linkEmailForm, setLinkEmailForm] = useState({ email: '', password: '' })
+  const [linkEmailOpen, setLinkEmailOpen] = useState(false)
+  const [linkEmailError, setLinkEmailError] = useState('')
+  const [linkEmailLoading, setLinkEmailLoading] = useState(false)
   const [tgPollTimer, setTgPollTimer] = useState<ReturnType<typeof setInterval> | null>(null)
   const isInTelegram = typeof window !== 'undefined' && !!((window as unknown as { Telegram?: { WebApp?: { initData?: string } } }).Telegram?.WebApp?.initData)
   const [synStage, setSynStage] = useState<SynStage>('input')
@@ -97,14 +102,7 @@ export function AppShell() {
           sessionStorage.removeItem('tg_auth_code')
           localStorage.setItem(TOKEN_KEY, data.token)
           fetch(`${API_URL}/auth/me`, { headers: { Authorization: `Bearer ${data.token}` } })
-            .then(r => r.ok ? r.json() : null)
-            .then((u: { name?: string; birthDate?: string; birthTime?: string; birthPlace?: string } | null) => {
-              if (u?.name) {
-                const bd: BirthData = { name: u.name, date: u.birthDate?.split('T')[0] ?? '', time: u.birthTime ?? '', city: u.birthPlace ?? '' }
-                setBirthData(bd)
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(bd))
-              }
-            }).catch(() => {})
+            .then(r => r.ok ? r.json() : null).then(applyUserProfile).catch(() => {})
           setPhase('app')
         } else if (data.status === 'pending') {
           // Код ещё ожидает — показать экран и продолжить polling
@@ -136,18 +134,7 @@ export function AppShell() {
     if (token && API_URL) {
       fetch(`${API_URL}/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
         .then(r => r.ok ? r.json() : null)
-        .then((u: { name?: string; birthDate?: string; birthTime?: string; birthPlace?: string } | null) => {
-          if (!u?.name) return
-          const bd: BirthData = {
-            name: u.name,
-            date: u.birthDate ? u.birthDate.split('T')[0]! : '',
-            time: u.birthTime ?? '',
-            city: u.birthPlace ?? '',
-          }
-          setBirthData(bd)
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(bd))
-        })
-        .catch(() => {})
+        .then(applyUserProfile).catch(() => {})
     }
   }, [])
 
@@ -182,15 +169,7 @@ export function AppShell() {
         if (!res.ok) throw new Error(data.message ?? 'Ошибка авторизации')
         localStorage.setItem(TOKEN_KEY, data.token ?? '')
         fetch(`${API_URL}/auth/me`, { headers: { Authorization: `Bearer ${data.token}` } })
-          .then(r => r.ok ? r.json() : null)
-          .then((u: { name?: string; birthDate?: string; birthTime?: string; birthPlace?: string } | null) => {
-            if (u?.name) {
-              const bd: BirthData = { name: u.name, date: u.birthDate?.split('T')[0] ?? '', time: u.birthTime ?? '', city: u.birthPlace ?? '' }
-              setBirthData(bd)
-              localStorage.setItem(STORAGE_KEY, JSON.stringify(bd))
-            }
-          })
-          .catch(() => {})
+          .then(r => r.ok ? r.json() : null).then(applyUserProfile).catch(() => {})
         setPhase('app')
         return
       } catch (e) {
@@ -233,17 +212,8 @@ export function AppShell() {
           setTgPollTimer(null)
           sessionStorage.removeItem('tg_auth_code')
           localStorage.setItem(TOKEN_KEY, data.token)
-          // Загрузить профиль
           fetch(`${API_URL}/auth/me`, { headers: { Authorization: `Bearer ${data.token}` } })
-            .then(r => r.ok ? r.json() : null)
-            .then((u: { name?: string; birthDate?: string; birthTime?: string; birthPlace?: string } | null) => {
-              if (u?.name) {
-                const bd: BirthData = { name: u.name, date: u.birthDate?.split('T')[0] ?? '', time: u.birthTime ?? '', city: u.birthPlace ?? '' }
-                setBirthData(bd)
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(bd))
-              }
-            })
-            .catch(() => {})
+            .then(r => r.ok ? r.json() : null).then(applyUserProfile).catch(() => {})
           setPhase('app')
         } else if (data.status === 'expired') {
           clearInterval(timer)
@@ -305,6 +275,38 @@ export function AppShell() {
     } finally {
       setAuthLoading(false)
     }
+  }
+
+  const linkEmail = async () => {
+    const token = localStorage.getItem(TOKEN_KEY)
+    if (!token || !API_URL) return
+    setLinkEmailLoading(true); setLinkEmailError('')
+    try {
+      const res = await fetch(`${API_URL}/auth/link-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(linkEmailForm),
+      })
+      const data = await res.json() as { email?: string; message?: string }
+      if (!res.ok) throw new Error(data.message ?? 'Ошибка')
+      setUserMeta(m => m ? { ...m, email: data.email ?? linkEmailForm.email } : m)
+      setLinkEmailOpen(false)
+      setLinkEmailForm({ email: '', password: '' })
+    } catch (e) {
+      setLinkEmailError(e instanceof Error ? e.message : 'Ошибка')
+    } finally {
+      setLinkEmailLoading(false)
+    }
+  }
+
+  const applyUserProfile = (u: { name?: string; birthDate?: string; birthTime?: string; birthPlace?: string; email?: string | null; telegramUsername?: string | null; hasTelegram?: boolean } | null) => {
+    if (!u) return
+    if (u.name) {
+      const bd: BirthData = { name: u.name, date: u.birthDate?.split('T')[0] ?? '', time: u.birthTime ?? '', city: u.birthPlace ?? '' }
+      setBirthData(bd)
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(bd))
+    }
+    setUserMeta({ email: u.email ?? null, telegramUsername: u.telegramUsername ?? null, hasTelegram: u.hasTelegram ?? false })
   }
 
   const goTab = (t: Tab) => { setTab(t); setSelectedPlanet(null) }
@@ -926,6 +928,56 @@ export function AppShell() {
                       <span style={{ font: '500 13px Inter', color: '#fff' }}>{value}</span>
                     </div>
                   ))}
+                </div>
+
+                {/* Аккаунт */}
+                <div style={{ background: 'rgba(255,255,255,.05)', borderRadius: 18, padding: '18px 20px', marginBottom: 14, border: '1px solid rgba(255,255,255,.08)' }}>
+                  <div style={{ font: '500 11px Inter', letterSpacing: 2, color: '#E2B755', textTransform: 'uppercase', marginBottom: 14 }}>Аккаунт</div>
+                  {userMeta?.telegramUsername && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
+                      <span style={{ font: '400 13px Inter', color: 'rgba(255,255,255,.45)' }}>Telegram</span>
+                      <span style={{ font: '500 13px Inter', color: '#229ED9' }}>@{userMeta.telegramUsername}</span>
+                    </div>
+                  )}
+                  {userMeta?.hasTelegram && !userMeta?.telegramUsername && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
+                      <span style={{ font: '400 13px Inter', color: 'rgba(255,255,255,.45)' }}>Telegram</span>
+                      <span style={{ font: '500 13px Inter', color: '#4ade80' }}>✓ Подключён</span>
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: userMeta?.email ? 0 : 10 }}>
+                    <span style={{ font: '400 13px Inter', color: 'rgba(255,255,255,.45)' }}>Email</span>
+                    <span style={{ font: '500 13px Inter', color: userMeta?.email ? '#fff' : 'rgba(255,255,255,.3)' }}>{userMeta?.email ?? 'Не привязан'}</span>
+                  </div>
+                  {!userMeta?.email && localStorage.getItem(TOKEN_KEY) && !linkEmailOpen && (
+                    <button onClick={() => setLinkEmailOpen(true)}
+                      style={{ width: '100%', marginTop: 12, padding: '10px 0', borderRadius: 12, border: '1px dashed rgba(226,183,85,.4)', background: 'transparent', color: '#E2B755', font: '500 13px Inter', cursor: 'pointer' }}>
+                      + Привязать email
+                    </button>
+                  )}
+                  {linkEmailOpen && (
+                    <div style={{ marginTop: 14 }}>
+                      <input type="email" placeholder="Email" value={linkEmailForm.email}
+                        onChange={e => setLinkEmailForm(f => ({ ...f, email: e.target.value }))}
+                        style={{ width: '100%', padding: '12px 14px', borderRadius: 12, border: '1px solid rgba(226,183,85,.35)', background: 'rgba(255,255,255,.06)', color: '#fff', font: '500 14px Inter', outline: 'none', marginBottom: 10, boxSizing: 'border-box' }}
+                      />
+                      <input type="password" placeholder="Пароль (мин. 6 символов)" value={linkEmailForm.password}
+                        onChange={e => setLinkEmailForm(f => ({ ...f, password: e.target.value }))}
+                        style={{ width: '100%', padding: '12px 14px', borderRadius: 12, border: '1px solid rgba(255,255,255,.15)', background: 'rgba(255,255,255,.06)', color: '#fff', font: '500 14px Inter', outline: 'none', marginBottom: 10, boxSizing: 'border-box' }}
+                      />
+                      {linkEmailError && <div style={{ color: '#f87171', font: '500 12px Inter', marginBottom: 8 }}>{linkEmailError}</div>}
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button onClick={linkEmail} disabled={linkEmailLoading}
+                          style={{ flex: 1, padding: '11px 0', borderRadius: 12, border: 'none', background: 'linear-gradient(90deg,#8B5CF6,#E2B755)', color: '#fff', font: '600 13px Inter', cursor: 'pointer', opacity: linkEmailLoading ? .6 : 1 }}>
+                          {linkEmailLoading ? '…' : 'Сохранить'}
+                        </button>
+                        <button onClick={() => { setLinkEmailOpen(false); setLinkEmailError('') }}
+                          style={{ padding: '11px 16px', borderRadius: 12, border: '1px solid rgba(255,255,255,.15)', background: 'transparent', color: 'rgba(255,255,255,.5)', font: '500 13px Inter', cursor: 'pointer' }}>
+                          Отмена
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Премиум */}

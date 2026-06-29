@@ -51,13 +51,19 @@ export class AuthService {
     const entry = this.pendingTgAuth.get(code)
     if (!entry) throw new UnauthorizedException('Код недействителен или истёк')
 
+    const displayName = `${tgUser.first_name} ${tgUser.last_name ?? ''}`.trim()
     const user = await this.prisma.user.upsert({
       where: { telegramId: BigInt(tgUser.id) },
-      update: { name: `${tgUser.first_name} ${tgUser.last_name ?? ''}`.trim(), avatarUrl: tgUser.photo_url },
+      update: {
+        name: displayName,
+        avatarUrl: tgUser.photo_url ?? null,
+        telegramUsername: tgUser.username ?? null,
+      },
       create: {
         telegramId: BigInt(tgUser.id),
-        name: `${tgUser.first_name} ${tgUser.last_name ?? ''}`.trim(),
-        avatarUrl: tgUser.photo_url,
+        telegramUsername: tgUser.username ?? null,
+        name: displayName,
+        avatarUrl: tgUser.photo_url ?? null,
         birthDate: new Date('2000-01-01'),
       },
     })
@@ -147,9 +153,11 @@ export class AuthService {
   }) {
     const tg = this.validateTelegramData(initData)
 
+    const displayName = `${tg.first_name} ${tg.last_name ?? ''}`.trim()
     const updateData: Record<string, unknown> = {
-      name: `${tg.first_name} ${tg.last_name ?? ''}`.trim(),
-      avatarUrl: tg.photo_url,
+      name: displayName,
+      avatarUrl: tg.photo_url ?? null,
+      telegramUsername: tg.username ?? null,
     }
     if (birthData?.birthDate) updateData['birthDate'] = new Date(birthData.birthDate)
     if (birthData?.birthTime) updateData['birthTime'] = birthData.birthTime
@@ -160,8 +168,9 @@ export class AuthService {
       update: updateData,
       create: {
         telegramId: BigInt(tg.id),
-        name: `${tg.first_name} ${tg.last_name ?? ''}`.trim(),
-        avatarUrl: tg.photo_url,
+        telegramUsername: tg.username ?? null,
+        name: displayName,
+        avatarUrl: tg.photo_url ?? null,
         birthDate: birthData?.birthDate ? new Date(birthData.birthDate) : new Date('2000-01-01'),
         birthTime: birthData?.birthTime ?? null,
         birthPlace: birthData?.birthPlace ?? null,
@@ -172,6 +181,20 @@ export class AuthService {
     return { token, user: this.safeUser(user) }
   }
 
+  // ─── Привязка email к TG аккаунту ───────────────────────────────────
+  async linkEmail(userId: string, email: string, password: string) {
+    const existing = await this.prisma.user.findUnique({ where: { email: email.toLowerCase().trim() } })
+    if (existing && existing.id !== userId) throw new ConflictException('Email уже используется другим аккаунтом')
+    if (password.length < 6) throw new BadRequestException('Пароль минимум 6 символов')
+
+    const passwordHash = await bcrypt.hash(password, 10)
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: { email: email.toLowerCase().trim(), passwordHash },
+    })
+    return this.safeUser(user)
+  }
+
   async validateJwt(payload: { sub: string }) {
     return this.prisma.user.findUnique({ where: { id: payload.sub } })
   }
@@ -179,6 +202,7 @@ export class AuthService {
   private safeUser(user: {
     id: string; name: string; email: string | null; avatarUrl: string | null
     isPremium: boolean; birthDate: Date; birthTime: string | null; birthPlace: string | null
+    telegramId?: bigint | null; telegramUsername?: string | null
   }) {
     return {
       id: user.id,
@@ -189,6 +213,8 @@ export class AuthService {
       birthDate: user.birthDate,
       birthTime: user.birthTime,
       birthPlace: user.birthPlace,
+      telegramUsername: user.telegramUsername ?? null,
+      hasTelegram: !!user.telegramId,
     }
   }
 }

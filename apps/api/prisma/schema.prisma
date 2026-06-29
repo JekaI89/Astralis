@@ -9,11 +9,12 @@ datasource db {
 
 model User {
   id              String    @id @default(cuid())
-  telegramId      BigInt?   @unique
-  name            String
-  email           String?   @unique
-  passwordHash    String?
-  avatarUrl       String?
+  telegramId       BigInt?   @unique
+  telegramUsername String?
+  name             String
+  email            String?   @unique
+  passwordHash     String?
+  avatarUrl        String?
   birthDate       DateTime
   birthTime       String?
   birthPlace      String?

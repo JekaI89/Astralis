@@ -55,8 +55,18 @@ export class AuthController {
   @Get('me')
   @UseGuards(AuthGuard('jwt'))
   @ApiOperation({ summary: 'Получить текущего пользователя' })
-  getMe(@Request() req: { user: { id: string; name: string; email: string | null; birthDate: Date; birthTime: string | null; birthPlace: string | null; avatarUrl: string | null; isPremium: boolean } }) {
+  getMe(@Request() req: { user: { id: string } }) {
     return req.user
+  }
+
+  @Post('link-email')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiOperation({ summary: 'Привязать email к Telegram аккаунту' })
+  linkEmail(
+    @Request() req: { user: { id: string } },
+    @Body() dto: { email: string; password: string },
+  ) {
+    return this.auth.linkEmail(req.user.id, dto.email, dto.password)
   }
 
   @Get('telegram-code')
