@@ -131,7 +131,10 @@ export function AppShell() {
       }
     }
     // Иначе — flow через бота
-    if (!API_URL) { setAuthError('API недоступен'); return }
+    if (!API_URL) {
+      setAuthError('Укажите NEXT_PUBLIC_API_URL в настройках Render → astralis-web → Environment')
+      return
+    }
     setAuthLoading(true)
     setAuthError('')
     try {
@@ -142,7 +145,8 @@ export function AppShell() {
       setAuthMethod('tg_bot')
       startPolling(data.code)
     } catch (e) {
-      setAuthError(e instanceof Error ? e.message : 'Ошибка')
+      const msg = e instanceof Error ? e.message : 'Ошибка'
+      setAuthError(msg === 'Failed to fetch' ? 'Сервер недоступен. Проверьте NEXT_PUBLIC_API_URL в Render.' : msg)
     } finally {
       setAuthLoading(false)
     }
