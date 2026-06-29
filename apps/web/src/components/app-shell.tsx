@@ -72,6 +72,10 @@ export function AppShell() {
   const [linkEmailOpen, setLinkEmailOpen] = useState(false)
   const [linkEmailError, setLinkEmailError] = useState('')
   const [linkEmailLoading, setLinkEmailLoading] = useState(false)
+  const [editBirthOpen, setEditBirthOpen] = useState(false)
+  const [editBirthForm, setEditBirthForm] = useState<BirthData>({ name: '', date: '', time: '', city: '' })
+  const [editBirthLoading, setEditBirthLoading] = useState(false)
+  const [editBirthError, setEditBirthError] = useState('')
   const [tgPollTimer, setTgPollTimer] = useState<ReturnType<typeof setInterval> | null>(null)
   const isInTelegram = typeof window !== 'undefined' && !!((window as unknown as { Telegram?: { WebApp?: { initData?: string } } }).Telegram?.WebApp?.initData)
   const [synStage, setSynStage] = useState<SynStage>('input')
@@ -299,6 +303,36 @@ export function AppShell() {
     }
   }
 
+  const saveBirthData = async () => {
+    setEditBirthLoading(true); setEditBirthError('')
+    try {
+      const token = localStorage.getItem(TOKEN_KEY)
+      if (token && API_URL) {
+        const res = await fetch(`${API_URL}/users/me`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            name: editBirthForm.name || undefined,
+            birthDate: editBirthForm.date || undefined,
+            birthTime: editBirthForm.time || null,
+            birthPlace: editBirthForm.city || null,
+          }),
+        })
+        if (!res.ok) {
+          const d = await res.json() as { message?: string }
+          throw new Error(d.message ?? 'Ошибка сохранения')
+        }
+      }
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(editBirthForm))
+      setBirthData(editBirthForm)
+      setEditBirthOpen(false)
+    } catch (e) {
+      setEditBirthError(e instanceof Error ? e.message : 'Ошибка')
+    } finally {
+      setEditBirthLoading(false)
+    }
+  }
+
   const applyUserProfile = (u: { name?: string; birthDate?: string; birthTime?: string; birthPlace?: string; email?: string | null; telegramUsername?: string | null; hasTelegram?: boolean } | null) => {
     if (!u) return
     if (u.name) {
@@ -309,7 +343,16 @@ export function AppShell() {
     setUserMeta({ email: u.email ?? null, telegramUsername: u.telegramUsername ?? null, hasTelegram: u.hasTelegram ?? false })
   }
 
-  const goTab = (t: Tab) => { setTab(t); setSelectedPlanet(null) }
+  const goTab = (t: Tab) => {
+    setTab(t); setSelectedPlanet(null)
+    if (t === 'profile' && API_URL) {
+      const token = localStorage.getItem(TOKEN_KEY)
+      if (token) {
+        fetch(`${API_URL}/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
+          .then(r => r.ok ? r.json() : null).then(applyUserProfile).catch(() => {})
+      }
+    }
+  }
 
   const handleDayTab = (d: DayTab) => {
     setDayTab(d)
@@ -910,6 +953,9 @@ export function AppShell() {
                     {birthData?.name?.[0]?.toUpperCase() ?? '✨'}
                   </div>
                   <div style={{ font: '700 22px Playfair Display, serif', color: '#fff' }}>{birthData?.name ?? 'Гость'}</div>
+                  {userMeta?.telegramUsername && (
+                    <div style={{ font: '500 13px Inter', color: '#229ED9', marginTop: 3 }}>@{userMeta.telegramUsername}</div>
+                  )}
                   <div style={{ font: '500 13px Inter', color: localStorage.getItem(TOKEN_KEY) ? '#4ade80' : 'rgba(255,255,255,.4)', marginTop: 4 }}>
                     {localStorage.getItem(TOKEN_KEY) ? '✓ Авторизован' : 'Офлайн-режим'}
                   </div>
@@ -917,17 +963,63 @@ export function AppShell() {
 
                 {/* Данные рождения */}
                 <div style={{ background: 'rgba(255,255,255,.05)', borderRadius: 18, padding: '18px 20px', marginBottom: 14, border: '1px solid rgba(255,255,255,.08)' }}>
-                  <div style={{ font: '500 11px Inter', letterSpacing: 2, color: '#E2B755', textTransform: 'uppercase', marginBottom: 14 }}>Данные рождения</div>
-                  {[
-                    { label: 'Дата', value: birthData?.date ? new Date(birthData.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' }) : '—' },
-                    { label: 'Время', value: birthData?.time || 'Не указано' },
-                    { label: 'Город', value: birthData?.city || 'Не указан' },
-                  ].map(({ label, value }) => (
-                    <div key={label} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
-                      <span style={{ font: '400 13px Inter', color: 'rgba(255,255,255,.45)' }}>{label}</span>
-                      <span style={{ font: '500 13px Inter', color: '#fff' }}>{value}</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                    <div style={{ font: '500 11px Inter', letterSpacing: 2, color: '#E2B755', textTransform: 'uppercase' }}>Данные рождения</div>
+                    {!editBirthOpen && (
+                      <button onClick={() => { setEditBirthForm(birthData ?? { name: '', date: '', time: '', city: '' }); setEditBirthOpen(true); setEditBirthError('') }}
+                        style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,.4)', font: '500 12px Inter', cursor: 'pointer', padding: '2px 6px' }}>
+                        ✏️ Изменить
+                      </button>
+                    )}
+                  </div>
+                  {!editBirthOpen ? (
+                    <>
+                      {[
+                        { label: 'Дата', value: birthData?.date ? new Date(birthData.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' }) : '—' },
+                        { label: 'Время', value: birthData?.time || 'Не указано' },
+                        { label: 'Город', value: birthData?.city || 'Не указан' },
+                      ].map(({ label, value }) => (
+                        <div key={label} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
+                          <span style={{ font: '400 13px Inter', color: 'rgba(255,255,255,.45)' }}>{label}</span>
+                          <span style={{ font: '500 13px Inter', color: '#fff' }}>{value}</span>
+                        </div>
+                      ))}
+                    </>
+                  ) : (
+                    <div>
+                      <div style={{ font: '500 11px Inter', color: 'rgba(255,255,255,.4)', marginBottom: 6 }}>Имя</div>
+                      <input type="text" value={editBirthForm.name}
+                        onChange={e => setEditBirthForm(f => ({ ...f, name: e.target.value }))}
+                        style={{ width: '100%', padding: '11px 14px', borderRadius: 12, border: '1px solid rgba(226,183,85,.35)', background: 'rgba(255,255,255,.06)', color: '#fff', font: '500 14px Inter', outline: 'none', marginBottom: 10, boxSizing: 'border-box' }}
+                      />
+                      <div style={{ font: '500 11px Inter', color: 'rgba(255,255,255,.4)', marginBottom: 6 }}>Дата рождения</div>
+                      <input type="date" value={editBirthForm.date}
+                        onChange={e => setEditBirthForm(f => ({ ...f, date: e.target.value }))}
+                        style={{ width: '100%', padding: '11px 14px', borderRadius: 12, border: '1px solid rgba(226,183,85,.35)', background: 'rgba(255,255,255,.06)', color: '#fff', font: '500 14px Inter', outline: 'none', marginBottom: 10, boxSizing: 'border-box', colorScheme: 'dark' }}
+                      />
+                      <div style={{ font: '500 11px Inter', color: 'rgba(255,255,255,.4)', marginBottom: 6 }}>Время <span style={{ color: 'rgba(255,255,255,.25)' }}>(необязательно)</span></div>
+                      <input type="time" value={editBirthForm.time}
+                        onChange={e => setEditBirthForm(f => ({ ...f, time: e.target.value }))}
+                        style={{ width: '100%', padding: '11px 14px', borderRadius: 12, border: '1px solid rgba(255,255,255,.15)', background: 'rgba(255,255,255,.06)', color: '#fff', font: '500 14px Inter', outline: 'none', marginBottom: 10, boxSizing: 'border-box', colorScheme: 'dark' }}
+                      />
+                      <div style={{ font: '500 11px Inter', color: 'rgba(255,255,255,.4)', marginBottom: 6 }}>Город <span style={{ color: 'rgba(255,255,255,.25)' }}>(необязательно)</span></div>
+                      <input type="text" placeholder="Москва" value={editBirthForm.city}
+                        onChange={e => setEditBirthForm(f => ({ ...f, city: e.target.value }))}
+                        style={{ width: '100%', padding: '11px 14px', borderRadius: 12, border: '1px solid rgba(255,255,255,.15)', background: 'rgba(255,255,255,.06)', color: '#fff', font: '500 14px Inter', outline: 'none', marginBottom: 10, boxSizing: 'border-box' }}
+                      />
+                      {editBirthError && <div style={{ color: '#f87171', font: '500 12px Inter', marginBottom: 8 }}>{editBirthError}</div>}
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button onClick={saveBirthData} disabled={editBirthLoading}
+                          style={{ flex: 1, padding: '11px 0', borderRadius: 12, border: 'none', background: 'linear-gradient(90deg,#8B5CF6,#E2B755)', color: '#fff', font: '600 13px Inter', cursor: 'pointer', opacity: editBirthLoading ? .6 : 1 }}>
+                          {editBirthLoading ? '…' : 'Сохранить'}
+                        </button>
+                        <button onClick={() => { setEditBirthOpen(false); setEditBirthError('') }}
+                          style={{ padding: '11px 16px', borderRadius: 12, border: '1px solid rgba(255,255,255,.15)', background: 'transparent', color: 'rgba(255,255,255,.5)', font: '500 13px Inter', cursor: 'pointer' }}>
+                          Отмена
+                        </button>
+                      </div>
                     </div>
-                  ))}
+                  )}
                 </div>
 
                 {/* Аккаунт */}
