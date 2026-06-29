@@ -66,6 +66,7 @@ export function AppShell() {
   const [authError, setAuthError] = useState('')
   const [authLoading, setAuthLoading] = useState(false)
   const [onboardStep, setOnboardStep] = useState(0)
+  const isInTelegram = typeof window !== 'undefined' && !!((window as unknown as { Telegram?: { WebApp?: { initData?: string } } }).Telegram?.WebApp?.initData)
   const [synStage, setSynStage] = useState<SynStage>('input')
   const [partnerAdded, setPartnerAdded] = useState(false)
   const [score, setScore] = useState(0)
@@ -105,9 +106,12 @@ export function AppShell() {
 
   const loginWithTelegram = async () => {
     const tg = (window as unknown as { Telegram?: { WebApp?: { initData?: string } } }).Telegram?.WebApp
-    if (!tg?.initData || !API_URL) {
-      setAuthMethod('birth_only')
-      setOnboardStep(0)
+    if (!tg?.initData) {
+      setAuthError('Откройте приложение через Telegram Mini App')
+      return
+    }
+    if (!API_URL) {
+      setAuthError('API недоступен. Используйте вход через Email.')
       return
     }
     setAuthLoading(true)
@@ -129,7 +133,7 @@ export function AppShell() {
       setBirthData(form)
       setPhase('app')
     } catch (e) {
-      setAuthError(e instanceof Error ? e.message : 'Ошибка')
+      setAuthError(e instanceof Error ? e.message : 'Ошибка соединения с сервером')
     } finally {
       setAuthLoading(false)
     }
@@ -290,26 +294,30 @@ export function AppShell() {
                 <div style={{ fontSize: 52, marginBottom: 12 }}>🔮</div>
                 <div style={{ font: '700 28px Playfair Display, serif', color: '#fff', marginBottom: 8 }}>Добро пожаловать</div>
                 <div style={{ font: '400 14px Inter', color: 'rgba(255,255,255,.5)', marginBottom: 36 }}>Войдите, чтобы получить персональный прогноз</div>
+                {isInTelegram && (
+                  <button
+                    onClick={loginWithTelegram}
+                    disabled={authLoading}
+                    style={{ width: '100%', padding: 16, borderRadius: 16, border: 'none', background: 'linear-gradient(90deg,#229ED9,#1a8ac4)', color: '#fff', font: '600 15px Inter', cursor: 'pointer', marginBottom: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, opacity: authLoading ? .6 : 1 }}
+                  >
+                    <span style={{ fontSize: 20 }}>✈️</span> {authLoading ? 'Подключаемся…' : 'Войти через Telegram'}
+                  </button>
+                )}
+                {authError && <div style={{ color: '#f87171', font: '500 13px Inter', marginBottom: 14, textAlign: 'center', background: 'rgba(248,113,113,.08)', borderRadius: 10, padding: '10px 14px' }}>{authError}</div>}
                 <button
-                  onClick={loginWithTelegram}
-                  style={{ width: '100%', padding: 16, borderRadius: 16, border: 'none', background: 'linear-gradient(90deg,#229ED9,#1a8ac4)', color: '#fff', font: '600 15px Inter', cursor: 'pointer', marginBottom: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}
-                >
-                  <span style={{ fontSize: 20 }}>✈️</span> Войти через Telegram
-                </button>
-                <button
-                  onClick={() => setAuthMethod('email_register')}
+                  onClick={() => { setAuthError(''); setAuthMethod('email_register') }}
                   style={{ width: '100%', padding: 16, borderRadius: 16, border: '1px solid rgba(226,183,85,.35)', background: 'rgba(226,183,85,.08)', color: '#E2B755', font: '600 15px Inter', cursor: 'pointer', marginBottom: 12 }}
                 >
                   Регистрация через Email
                 </button>
                 <button
-                  onClick={() => setAuthMethod('email_login')}
+                  onClick={() => { setAuthError(''); setAuthMethod('email_login') }}
                   style={{ width: '100%', padding: 14, borderRadius: 16, border: '1px solid rgba(255,255,255,.1)', background: 'transparent', color: 'rgba(255,255,255,.45)', font: '500 14px Inter', cursor: 'pointer', marginBottom: 16 }}
                 >
                   Уже есть аккаунт → Войти
                 </button>
                 <button
-                  onClick={() => { setAuthMethod('birth_only'); setOnboardStep(0) }}
+                  onClick={() => { setAuthError(''); setAuthMethod('birth_only'); setOnboardStep(0) }}
                   style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,.3)', font: '400 13px Inter', cursor: 'pointer', width: '100%', textDecoration: 'underline' }}
                 >
                   Продолжить без аккаунта
