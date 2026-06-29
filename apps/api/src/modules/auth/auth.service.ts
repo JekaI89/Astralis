@@ -5,6 +5,11 @@ import { PrismaService } from '../../prisma/prisma.service'
 import * as bcrypt from 'bcryptjs'
 import * as crypto from 'crypto'
 
+interface PendingAuth {
+  token?: string
+  createdAt: number
+}
+
 export interface TelegramInitData {
   id: number
   first_name: string
@@ -17,11 +22,60 @@ export interface TelegramInitData {
 
 @Injectable()
 export class AuthService {
+  private readonly pendingTgAuth = new Map<string, PendingAuth>()
+
   constructor(
     private prisma: PrismaService,
     private jwt: JwtService,
     private config: ConfigService,
-  ) {}
+  ) {
+    // Чистим истёкшие коды каждые 5 минут
+    setInterval(() => {
+      const now = Date.now()
+      for (const [code, entry] of this.pendingTgAuth.entries()) {
+        if (now - entry.createdAt > 5 * 60 * 1000) this.pendingTgAuth.delete(code)
+      }
+    }, 5 * 60 * 1000)
+  }
+
+  // ─── Telegram Bot Auth (код) ─────────────────────────────────────────
+  createTelegramAuthCode(): string {
+    const code = crypto.randomBytes(12).toString('hex')
+    this.pendingTgAuth.set(code, { createdAt: Date.now() })
+    return code
+  }
+
+  async confirmTelegramAuth(code: string, tgUser: {
+    id: number; first_name: string; last_name?: string; username?: string; photo_url?: string
+  }) {
+    const entry = this.pendingTgAuth.get(code)
+    if (!entry) throw new UnauthorizedException('Код недействителен или истёк')
+
+    const user = await this.prisma.user.upsert({
+      where: { telegramId: BigInt(tgUser.id) },
+      update: { name: `${tgUser.first_name} ${tgUser.last_name ?? ''}`.trim(), avatarUrl: tgUser.photo_url },
+      create: {
+        telegramId: BigInt(tgUser.id),
+        name: `${tgUser.first_name} ${tgUser.last_name ?? ''}`.trim(),
+        avatarUrl: tgUser.photo_url,
+        birthDate: new Date('2000-01-01'),
+      },
+    })
+
+    const token = this.jwt.sign({ sub: user.id, telegramId: tgUser.id })
+    this.pendingTgAuth.set(code, { token, createdAt: entry.createdAt })
+    return token
+  }
+
+  pollTelegramAuth(code: string): { status: 'pending' | 'ok' | 'expired'; token?: string } {
+    const entry = this.pendingTgAuth.get(code)
+    if (!entry) return { status: 'expired' }
+    if (entry.token) {
+      this.pendingTgAuth.delete(code)
+      return { status: 'ok', token: entry.token }
+    }
+    return { status: 'pending' }
+  }
 
   // ─── Email регистрация ───────────────────────────────────────────────
   async registerWithEmail(dto: {

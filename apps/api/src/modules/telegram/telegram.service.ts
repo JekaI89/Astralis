@@ -47,12 +47,43 @@ export class TelegramService implements OnModuleInit {
   private setupCommands() {
     if (!this.bot) return
 
-    this.bot.start((ctx) => this.handleStart(ctx))
+    this.bot.start((ctx) => this.handleStart(ctx as Context & { startPayload?: string }))
     this.bot.command('menu', (ctx) => this.handleMenu(ctx))
     this.bot.command('horoscope', (ctx) => this.handleHoroscope(ctx))
   }
 
-  private async handleStart(ctx: Context) {
+  private async handleStart(ctx: Context & { startPayload?: string }) {
+    const payload = ctx.startPayload ?? (ctx.message && 'text' in ctx.message ? ctx.message.text.split(' ')[1] : '')
+
+    if (payload?.startsWith('auth_')) {
+      const code = payload.slice(5)
+      const user = ctx.from
+      if (!user) return
+
+      try {
+        await fetch(`${this.apiUrl}/auth/telegram-confirm`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            code,
+            tgUser: {
+              id: user.id,
+              first_name: user.first_name,
+              last_name: user.last_name,
+              username: user.username,
+            },
+          }),
+        })
+        await ctx.reply(
+          `✅ <b>Авторизация успешна!</b>\n\nВернитесь в приложение — оно уже вас узнало.`,
+          { parse_mode: 'HTML' }
+        )
+      } catch {
+        await ctx.reply('⚠️ Ошибка авторизации. Попробуйте снова.')
+      }
+      return
+    }
+
     const name = ctx.from?.first_name ?? 'друг'
     await ctx.reply(
       `✨ Привет, ${name}!\n\nДобро пожаловать в <b>Astralis</b> — твой персональный астролог.\n\n🌟 Открой приложение:`,

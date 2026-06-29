@@ -18,7 +18,7 @@ interface BirthData {
   city: string
 }
 
-type AuthMethod = 'choose' | 'email_register' | 'email_login' | 'birth_only'
+type AuthMethod = 'choose' | 'email_register' | 'email_login' | 'birth_only' | 'tg_bot'
 
 interface PlanetData {
   id: string
@@ -66,6 +66,8 @@ export function AppShell() {
   const [authError, setAuthError] = useState('')
   const [authLoading, setAuthLoading] = useState(false)
   const [onboardStep, setOnboardStep] = useState(0)
+  const [tgAuthCode, setTgAuthCode] = useState('')
+  const [tgPollTimer, setTgPollTimer] = useState<ReturnType<typeof setInterval> | null>(null)
   const isInTelegram = typeof window !== 'undefined' && !!((window as unknown as { Telegram?: { WebApp?: { initData?: string } } }).Telegram?.WebApp?.initData)
   const [synStage, setSynStage] = useState<SynStage>('input')
   const [partnerAdded, setPartnerAdded] = useState(false)
@@ -79,8 +81,9 @@ export function AppShell() {
     return () => {
       if (calcTimer.current) clearTimeout(calcTimer.current)
       if (scoreTimer.current) clearInterval(scoreTimer.current)
+      if (tgPollTimer) clearInterval(tgPollTimer)
     }
-  }, [])
+  }, [tgPollTimer])
 
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY)
@@ -105,38 +108,66 @@ export function AppShell() {
   }
 
   const loginWithTelegram = async () => {
+    // Если внутри Mini App — используем initData
     const tg = (window as unknown as { Telegram?: { WebApp?: { initData?: string } } }).Telegram?.WebApp
-    if (!tg?.initData) {
-      setAuthError('Откройте приложение через Telegram Mini App')
-      return
+    if (tg?.initData && API_URL) {
+      setAuthLoading(true)
+      setAuthError('')
+      try {
+        const res = await fetch(`${API_URL}/auth/telegram`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ initData: tg.initData }),
+        })
+        const data = await res.json() as { token?: string; message?: string }
+        if (!res.ok) throw new Error(data.message ?? 'Ошибка авторизации')
+        localStorage.setItem(TOKEN_KEY, data.token ?? '')
+        setPhase('app')
+        return
+      } catch (e) {
+        setAuthError(e instanceof Error ? e.message : 'Ошибка')
+      } finally {
+        setAuthLoading(false)
+      }
     }
-    if (!API_URL) {
-      setAuthError('API недоступен. Используйте вход через Email.')
-      return
-    }
+    // Иначе — flow через бота
+    if (!API_URL) { setAuthError('API недоступен'); return }
     setAuthLoading(true)
     setAuthError('')
     try {
-      const res = await fetch(`${API_URL}/auth/telegram`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          initData: tg.initData,
-          birthDate: form.date || undefined,
-          birthTime: form.time || undefined,
-          birthPlace: form.city || undefined,
-        }),
-      })
-      const data = await res.json() as { token?: string; message?: string }
-      if (!res.ok) throw new Error(data.message ?? 'Ошибка авторизации')
-      localStorage.setItem(TOKEN_KEY, data.token ?? '')
-      setBirthData(form)
-      setPhase('app')
+      const res = await fetch(`${API_URL}/auth/telegram-code`)
+      const data = await res.json() as { code?: string }
+      if (!data.code) throw new Error('Не удалось получить код')
+      setTgAuthCode(data.code)
+      setAuthMethod('tg_bot')
+      startPolling(data.code)
     } catch (e) {
-      setAuthError(e instanceof Error ? e.message : 'Ошибка соединения с сервером')
+      setAuthError(e instanceof Error ? e.message : 'Ошибка')
     } finally {
       setAuthLoading(false)
     }
+  }
+
+  const startPolling = (code: string) => {
+    if (!API_URL) return
+    const timer = setInterval(async () => {
+      try {
+        const res = await fetch(`${API_URL}/auth/telegram-poll/${code}`)
+        const data = await res.json() as { status: string; token?: string }
+        if (data.status === 'ok' && data.token) {
+          clearInterval(timer)
+          setTgPollTimer(null)
+          localStorage.setItem(TOKEN_KEY, data.token)
+          setPhase('app')
+        } else if (data.status === 'expired') {
+          clearInterval(timer)
+          setTgPollTimer(null)
+          setAuthMethod('choose')
+          setAuthError('Код истёк, попробуйте снова')
+        }
+      } catch { /* ignore */ }
+    }, 2000)
+    setTgPollTimer(timer)
   }
 
   const registerEmail = async () => {
@@ -341,6 +372,33 @@ export function AppShell() {
                   style={{ width: '100%', padding: 16, borderRadius: 16, border: 'none', background: 'linear-gradient(90deg,#8B5CF6,#E2B755)', color: '#fff', font: '600 15px Inter', cursor: 'pointer', opacity: authLoading ? .6 : 1 }}
                 >
                   {authLoading ? 'Входим…' : 'Войти →'}
+                </button>
+              </div>
+            )}
+
+            {/* Ожидание подтверждения через бота */}
+            {authMethod === 'tg_bot' && (
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 52, marginBottom: 16 }}>✈️</div>
+                <div style={{ font: '700 22px Playfair Display, serif', color: '#fff', marginBottom: 10 }}>Подтвердите в Telegram</div>
+                <div style={{ font: '400 13px/1.6 Inter', color: 'rgba(255,255,255,.55)', marginBottom: 28 }}>
+                  Нажмите кнопку ниже — откроется бот.<br/>Нажмите <b style={{ color: '#fff' }}>СТАРТ</b> и вернитесь сюда.
+                </div>
+                <a
+                  href={`https://t.me/NovaSouI_bot?start=auth_${tgAuthCode}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ display: 'block', width: '100%', padding: 16, borderRadius: 16, background: 'linear-gradient(90deg,#229ED9,#1a8ac4)', color: '#fff', font: '600 15px Inter', textDecoration: 'none', marginBottom: 20, boxSizing: 'border-box' }}
+                >
+                  ✈️ Открыть @NovaSouI_bot
+                </a>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 24 }}>
+                  <div className="anim-float" style={{ width: 8, height: 8, borderRadius: '50%', background: '#4ade80', boxShadow: '0 0 8px #4ade80' }}/>
+                  <span style={{ font: '500 13px Inter', color: 'rgba(255,255,255,.5)' }}>Ожидаем подтверждения…</span>
+                </div>
+                <button onClick={() => { if (tgPollTimer) clearInterval(tgPollTimer); setTgPollTimer(null); setAuthMethod('choose'); setAuthError('') }}
+                  style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,.3)', font: '400 13px Inter', cursor: 'pointer', textDecoration: 'underline' }}>
+                  Отмена
                 </button>
               </div>
             )}

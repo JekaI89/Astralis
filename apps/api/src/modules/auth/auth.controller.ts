@@ -1,4 +1,4 @@
-import { Body, Controller, Post } from '@nestjs/common'
+import { Body, Controller, Post, Get, Param, HttpCode } from '@nestjs/common'
 import { ApiOperation, ApiTags } from '@nestjs/swagger'
 import { IsEmail, IsString, MinLength, IsOptional, IsDateString } from 'class-validator'
 import { AuthService } from './auth.service'
@@ -49,5 +49,24 @@ export class AuthController {
   @ApiOperation({ summary: 'Вход через email' })
   login(@Body() dto: LoginEmailDto) {
     return this.auth.loginWithEmail(dto.email, dto.password)
+  }
+
+  @Get('telegram-code')
+  @ApiOperation({ summary: 'Создать одноразовый код для Telegram-авторизации' })
+  createTelegramCode() {
+    return { code: this.auth.createTelegramAuthCode() }
+  }
+
+  @Get('telegram-poll/:code')
+  @ApiOperation({ summary: 'Опрос статуса Telegram-авторизации' })
+  pollTelegramAuth(@Param('code') code: string) {
+    return this.auth.pollTelegramAuth(code)
+  }
+
+  @Post('telegram-confirm')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Подтверждение от бота (внутренний)' })
+  confirmTelegramAuth(@Body() body: { code: string; tgUser: { id: number; first_name: string; last_name?: string; username?: string; photo_url?: string } }) {
+    return this.auth.confirmTelegramAuth(body.code, body.tgUser)
   }
 }
