@@ -1,0 +1,155 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String    @id @default(cuid())
+  telegramId      BigInt?   @unique
+  name            String
+  email           String?   @unique
+  avatarUrl       String?
+  birthDate       DateTime
+  birthTime       String?
+  birthPlace      String?
+  birthLat        Float?
+  birthLng        Float?
+  timezone        String?
+  language        String    @default("ru")
+  isPremium       Boolean   @default(false)
+  premiumExpiresAt DateTime?
+  referralCode    String    @unique @default(cuid())
+  referredById    String?
+  referredBy      User?     @relation("Referrals", fields: [referredById], references: [id])
+  referrals       User[]    @relation("Referrals")
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  natalChart         NatalChart?
+  numerologyProfile  NumerologyProfile?
+  contacts           Contact[]
+  moodEntries        MoodEntry[]
+  chatSessions       ChatSession[]
+  notifications      NotificationPreference?
+  dailyHoroscopes    DailyHoroscope[]
+  compatibilityReports CompatibilityReport[]
+
+  @@map("users")
+}
+
+model NatalChart {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  data        Json     // хранит весь объект NatalChart
+  calculatedAt DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("natal_charts")
+}
+
+model NumerologyProfile {
+  id                String @id @default(cuid())
+  userId            String @unique
+  user              User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lifePathNumber    Int
+  expressionNumber  Int
+  soulUrgeNumber    Int
+  personalityNumber Int
+  birthdayNumber    Int
+  maturityNumber    Int
+  calculatedAt      DateTime @default(now())
+
+  @@map("numerology_profiles")
+}
+
+model Contact {
+  id          String   @id @default(cuid())
+  ownerId     String
+  owner       User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  name        String
+  birthDate   DateTime
+  birthTime   String?
+  birthPlace  String?
+  birthLat    Float?
+  birthLng    Float?
+  relation    String   @default("other")
+  avatarUrl   String?
+  natalChart  Json?
+  createdAt   DateTime @default(now())
+
+  compatibilityReports CompatibilityReport[]
+
+  @@map("contacts")
+}
+
+model DailyHoroscope {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date            DateTime @db.Date
+  data            Json
+  createdAt       DateTime @default(now())
+
+  @@unique([userId, date])
+  @@map("daily_horoscopes")
+}
+
+model CompatibilityReport {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contactId   String
+  contact     Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  data        Json
+  shareImageUrl String?
+  calculatedAt DateTime @default(now())
+
+  @@unique([userId, contactId])
+  @@map("compatibility_reports")
+}
+
+model MoodEntry {
+  id               String   @id @default(cuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date             DateTime @db.Date
+  mood             Int
+  emoji            String
+  note             String?
+  moonSign         String
+  lunarDay         Int
+  personalDayNumber Int
+  createdAt        DateTime @default(now())
+
+  @@unique([userId, date])
+  @@map("mood_entries")
+}
+
+model ChatSession {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages  Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("chat_sessions")
+}
+
+model NotificationPreference {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  channels  String[]
+  dailyTime String   @default("08:00")
+  timezone  String   @default("Europe/Moscow")
+  enabled   Json     @default("{}")
+  updatedAt DateTime @updatedAt
+
+  @@map("notification_preferences")
+}

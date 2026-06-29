@@ -1,0 +1,29 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-bg: #0D0D1A;
+  --color-surface: #161628;
+  --color-surface-2: #1E1E38;
+  --color-border: #2A2A4A;
+  --color-primary: #9B5DE5;
+  --color-primary-light: #C77DFF;
+  --color-accent: #F72585;
+  --color-gold: #FFD700;
+  --color-text: #E8E8F0;
+  --color-text-muted: #8888AA;
+}
+
+/* Telegram Mini App — убираем скролл bounce */
+html, body {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Безопасная зона для iOS */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 16px);
+}

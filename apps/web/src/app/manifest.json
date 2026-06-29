@@ -1,0 +1,13 @@
+{
+  "name": "Astralis",
+  "short_name": "Astralis",
+  "description": "Астрология и нумерология в кармане",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0D0D1A",
+  "theme_color": "#0D0D1A",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
