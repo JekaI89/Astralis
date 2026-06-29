@@ -8,6 +8,8 @@ type DayTab = 'today' | 'tomorrow' | 'week' | 'month'
 type SynStage = 'input' | 'calculating' | 'result'
 
 const STORAGE_KEY = 'astralis_birth_data'
+const TOKEN_KEY = 'astralis_token'
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? ''
 
 interface BirthData {
   name: string
@@ -15,6 +17,8 @@ interface BirthData {
   time: string
   city: string
 }
+
+type AuthMethod = 'choose' | 'email_register' | 'email_login'
 
 interface PlanetData {
   id: string
@@ -57,6 +61,10 @@ export function AppShell() {
   const [selectedPlanet, setSelectedPlanet] = useState<(PlanetData & { x: number; y: number; fill: string; halo: number; strokeW: number; fontSize: number }) | null>(null)
   const [birthData, setBirthData] = useState<BirthData | null>(null)
   const [form, setForm] = useState<BirthData>({ name: '', date: '', time: '', city: '' })
+  const [emailForm, setEmailForm] = useState({ email: '', password: '' })
+  const [authMethod, setAuthMethod] = useState<AuthMethod>('choose')
+  const [authError, setAuthError] = useState('')
+  const [authLoading, setAuthLoading] = useState(false)
   const [onboardStep, setOnboardStep] = useState(0)
   const [synStage, setSynStage] = useState<SynStage>('input')
   const [partnerAdded, setPartnerAdded] = useState(false)
@@ -86,11 +94,94 @@ export function AppShell() {
     setPhase(saved ? 'app' : 'onboarding')
   }, [])
 
-  const submitBirth = () => {
+  const submitBirth = async () => {
     if (!form.name || !form.date) return
     localStorage.setItem(STORAGE_KEY, JSON.stringify(form))
     setBirthData(form)
     setPhase('app')
+  }
+
+  const loginWithTelegram = async () => {
+    const tg = (window as unknown as { Telegram?: { WebApp?: { initData?: string } } }).Telegram?.WebApp
+    if (!tg?.initData || !API_URL) {
+      // Не в Telegram — переходим к email
+      setAuthMethod('email_register')
+      return
+    }
+    setAuthLoading(true)
+    setAuthError('')
+    try {
+      const res = await fetch(`${API_URL}/auth/telegram`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          initData: tg.initData,
+          birthDate: form.date || undefined,
+          birthTime: form.time || undefined,
+          birthPlace: form.city || undefined,
+        }),
+      })
+      const data = await res.json() as { token?: string; message?: string }
+      if (!res.ok) throw new Error(data.message ?? 'Ошибка авторизации')
+      localStorage.setItem(TOKEN_KEY, data.token ?? '')
+      setBirthData(form)
+      setPhase('app')
+    } catch (e) {
+      setAuthError(e instanceof Error ? e.message : 'Ошибка')
+    } finally {
+      setAuthLoading(false)
+    }
+  }
+
+  const registerEmail = async () => {
+    if (!emailForm.email || !emailForm.password || !form.name || !form.date) return
+    setAuthLoading(true)
+    setAuthError('')
+    try {
+      const res = await fetch(`${API_URL}/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: form.name,
+          email: emailForm.email,
+          password: emailForm.password,
+          birthDate: form.date,
+          birthTime: form.time || undefined,
+          birthPlace: form.city || undefined,
+        }),
+      })
+      const data = await res.json() as { token?: string; message?: string }
+      if (!res.ok) throw new Error(data.message ?? 'Ошибка регистрации')
+      localStorage.setItem(TOKEN_KEY, data.token ?? '')
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(form))
+      setBirthData(form)
+      setPhase('app')
+    } catch (e) {
+      setAuthError(e instanceof Error ? e.message : 'Ошибка')
+    } finally {
+      setAuthLoading(false)
+    }
+  }
+
+  const loginEmail = async () => {
+    if (!emailForm.email || !emailForm.password) return
+    setAuthLoading(true)
+    setAuthError('')
+    try {
+      const res = await fetch(`${API_URL}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: emailForm.email, password: emailForm.password }),
+      })
+      const data = await res.json() as { token?: string; user?: BirthData; message?: string }
+      if (!res.ok) throw new Error(data.message ?? 'Неверный email или пароль')
+      localStorage.setItem(TOKEN_KEY, data.token ?? '')
+      setPhase('app')
+    } catch (e) {
+      setAuthError(e instanceof Error ? e.message : 'Ошибка')
+    } finally {
+      setAuthLoading(false)
+    }
   }
 
   const goTab = (t: Tab) => { setTab(t); setSelectedPlanet(null) }
@@ -188,104 +279,152 @@ export function AppShell() {
 
       {/* ONBOARDING */}
       {phase === 'onboarding' && (
-        <div className="anim-fadeup" style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 24px' }}>
+        <div className="anim-fadeup" style={{ position: 'absolute', inset: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 24px' }}>
           <div style={{ width: '100%', maxWidth: 400 }}>
 
-            {/* Шаг 0 — Имя */}
-            {onboardStep === 0 && (
+            {/* Выбор метода входа */}
+            {authMethod === 'choose' && onboardStep === 0 && (
               <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: 52, marginBottom: 12 }}>✨</div>
+                <div style={{ fontSize: 52, marginBottom: 12 }}>🔮</div>
                 <div style={{ font: '700 28px Playfair Display, serif', color: '#fff', marginBottom: 8 }}>Добро пожаловать</div>
-                <div style={{ font: '400 14px Inter', color: 'rgba(255,255,255,.5)', marginBottom: 32 }}>Как вас зовут?</div>
-                <input
-                  type="text"
-                  placeholder="Ваше имя"
-                  value={form.name}
-                  onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                  style={{ width: '100%', padding: '16px 20px', borderRadius: 16, border: '1px solid rgba(226,183,85,.35)', background: 'rgba(255,255,255,.06)', color: '#fff', font: '500 16px Inter', outline: 'none', marginBottom: 20, boxSizing: 'border-box' }}
-                />
+                <div style={{ font: '400 14px Inter', color: 'rgba(255,255,255,.5)', marginBottom: 36 }}>Войдите, чтобы получить персональный прогноз</div>
                 <button
-                  onClick={() => form.name.trim() && setOnboardStep(1)}
-                  style={{ width: '100%', padding: 16, borderRadius: 16, border: 'none', background: form.name.trim() ? 'linear-gradient(90deg,#8B5CF6,#E2B755)' : 'rgba(255,255,255,.1)', color: '#fff', font: '600 15px Inter', cursor: form.name.trim() ? 'pointer' : 'default', transition: 'all .2s' }}
+                  onClick={loginWithTelegram}
+                  style={{ width: '100%', padding: 16, borderRadius: 16, border: 'none', background: 'linear-gradient(90deg,#229ED9,#1a8ac4)', color: '#fff', font: '600 15px Inter', cursor: 'pointer', marginBottom: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}
                 >
-                  Продолжить →
+                  <span style={{ fontSize: 20 }}>✈️</span> Войти через Telegram
+                </button>
+                <button
+                  onClick={() => setAuthMethod('email_register')}
+                  style={{ width: '100%', padding: 16, borderRadius: 16, border: '1px solid rgba(226,183,85,.35)', background: 'rgba(226,183,85,.08)', color: '#E2B755', font: '600 15px Inter', cursor: 'pointer', marginBottom: 12 }}
+                >
+                  Регистрация через Email
+                </button>
+                <button
+                  onClick={() => setAuthMethod('email_login')}
+                  style={{ width: '100%', padding: 14, borderRadius: 16, border: '1px solid rgba(255,255,255,.1)', background: 'transparent', color: 'rgba(255,255,255,.45)', font: '500 14px Inter', cursor: 'pointer' }}
+                >
+                  Уже есть аккаунт → Войти
                 </button>
               </div>
             )}
 
-            {/* Шаг 1 — Дата и время рождения */}
-            {onboardStep === 1 && (
+            {/* Email логин */}
+            {authMethod === 'email_login' && (
               <div>
-                <button onClick={() => setOnboardStep(0)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,.4)', font: '500 13px Inter', cursor: 'pointer', marginBottom: 16, padding: 0 }}>← Назад</button>
-                <div style={{ font: '700 24px Playfair Display, serif', color: '#fff', marginBottom: 6 }}>Дата рождения</div>
-                <div style={{ font: '400 13px Inter', color: 'rgba(255,255,255,.45)', marginBottom: 24 }}>Нужна для расчёта натальной карты</div>
-
-                <div style={{ marginBottom: 16 }}>
-                  <div style={{ font: '500 12px Inter', color: '#E2B755', letterSpacing: 1, marginBottom: 8, textTransform: 'uppercase' }}>Дата</div>
-                  <input
-                    type="date"
-                    value={form.date}
-                    onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
-                    style={{ width: '100%', padding: '14px 16px', borderRadius: 14, border: '1px solid rgba(226,183,85,.35)', background: 'rgba(255,255,255,.06)', color: '#fff', font: '500 15px Inter', outline: 'none', boxSizing: 'border-box', colorScheme: 'dark' }}
-                  />
-                </div>
-
-                <div style={{ marginBottom: 28 }}>
-                  <div style={{ font: '500 12px Inter', color: '#E2B755', letterSpacing: 1, marginBottom: 8, textTransform: 'uppercase' }}>Время рождения <span style={{ color: 'rgba(255,255,255,.3)', fontSize: 11 }}>(если знаете)</span></div>
-                  <input
-                    type="time"
-                    value={form.time}
-                    onChange={(e) => setForm((f) => ({ ...f, time: e.target.value }))}
-                    style={{ width: '100%', padding: '14px 16px', borderRadius: 14, border: '1px solid rgba(255,255,255,.15)', background: 'rgba(255,255,255,.06)', color: '#fff', font: '500 15px Inter', outline: 'none', boxSizing: 'border-box', colorScheme: 'dark' }}
-                  />
-                </div>
-
-                <button
-                  onClick={() => form.date && setOnboardStep(2)}
-                  style={{ width: '100%', padding: 16, borderRadius: 16, border: 'none', background: form.date ? 'linear-gradient(90deg,#8B5CF6,#E2B755)' : 'rgba(255,255,255,.1)', color: '#fff', font: '600 15px Inter', cursor: form.date ? 'pointer' : 'default', transition: 'all .2s' }}
-                >
-                  Продолжить →
-                </button>
-              </div>
-            )}
-
-            {/* Шаг 2 — Город */}
-            {onboardStep === 2 && (
-              <div>
-                <button onClick={() => setOnboardStep(1)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,.4)', font: '500 13px Inter', cursor: 'pointer', marginBottom: 16, padding: 0 }}>← Назад</button>
-                <div style={{ font: '700 24px Playfair Display, serif', color: '#fff', marginBottom: 6 }}>Место рождения</div>
-                <div style={{ font: '400 13px Inter', color: 'rgba(255,255,255,.45)', marginBottom: 24 }}>Для точного расчёта асцендента и домов</div>
-
-                <input
-                  type="text"
-                  placeholder="Город (например, Москва)"
-                  value={form.city}
-                  onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))}
-                  style={{ width: '100%', padding: '16px 20px', borderRadius: 16, border: '1px solid rgba(226,183,85,.35)', background: 'rgba(255,255,255,.06)', color: '#fff', font: '500 16px Inter', outline: 'none', marginBottom: 12, boxSizing: 'border-box' }}
+                <button onClick={() => { setAuthMethod('choose'); setAuthError('') }} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,.4)', font: '500 13px Inter', cursor: 'pointer', marginBottom: 20, padding: 0 }}>← Назад</button>
+                <div style={{ font: '700 24px Playfair Display, serif', color: '#fff', marginBottom: 24 }}>Вход</div>
+                <input type="email" placeholder="Email" value={emailForm.email}
+                  onChange={(e) => setEmailForm((f) => ({ ...f, email: e.target.value }))}
+                  style={{ width: '100%', padding: '14px 16px', borderRadius: 14, border: '1px solid rgba(226,183,85,.35)', background: 'rgba(255,255,255,.06)', color: '#fff', font: '500 15px Inter', outline: 'none', marginBottom: 12, boxSizing: 'border-box' }}
                 />
-                <div style={{ font: '400 12px Inter', color: 'rgba(255,255,255,.3)', marginBottom: 28, textAlign: 'center' }}>Не знаете точного города? Нажмите «Пропустить»</div>
-
-                <button
-                  onClick={submitBirth}
-                  style={{ width: '100%', padding: 16, borderRadius: 16, border: 'none', background: 'linear-gradient(90deg,#8B5CF6,#E2B755)', color: '#fff', font: '600 15px Inter', cursor: 'pointer', marginBottom: 10 }}
+                <input type="password" placeholder="Пароль" value={emailForm.password}
+                  onChange={(e) => setEmailForm((f) => ({ ...f, password: e.target.value }))}
+                  style={{ width: '100%', padding: '14px 16px', borderRadius: 14, border: '1px solid rgba(255,255,255,.15)', background: 'rgba(255,255,255,.06)', color: '#fff', font: '500 15px Inter', outline: 'none', marginBottom: 20, boxSizing: 'border-box' }}
+                />
+                {authError && <div style={{ color: '#f87171', font: '500 13px Inter', marginBottom: 12, textAlign: 'center' }}>{authError}</div>}
+                <button onClick={loginEmail} disabled={authLoading}
+                  style={{ width: '100%', padding: 16, borderRadius: 16, border: 'none', background: 'linear-gradient(90deg,#8B5CF6,#E2B755)', color: '#fff', font: '600 15px Inter', cursor: 'pointer', opacity: authLoading ? .6 : 1 }}
                 >
-                  Составить карту 🔮
-                </button>
-                <button
-                  onClick={() => { setForm((f) => ({ ...f, city: '' })); submitBirth() }}
-                  style={{ width: '100%', padding: 14, borderRadius: 16, border: '1px solid rgba(255,255,255,.12)', background: 'transparent', color: 'rgba(255,255,255,.45)', font: '500 14px Inter', cursor: 'pointer' }}
-                >
-                  Пропустить
+                  {authLoading ? 'Входим…' : 'Войти →'}
                 </button>
               </div>
             )}
 
-            {/* Прогресс-точки */}
-            <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 32 }}>
-              {[0,1,2].map((i) => (
-                <div key={i} style={{ width: i === onboardStep ? 20 : 6, height: 6, borderRadius: 3, background: i === onboardStep ? '#E2B755' : 'rgba(255,255,255,.2)', transition: 'all .3s' }}/>
-              ))}
-            </div>
+            {/* Email регистрация — шаги */}
+            {authMethod === 'email_register' && (
+              <div>
+                {/* Шаг 0 — Имя */}
+                {onboardStep === 0 && (
+                  <div>
+                    <button onClick={() => { setAuthMethod('choose'); setAuthError('') }} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,.4)', font: '500 13px Inter', cursor: 'pointer', marginBottom: 20, padding: 0 }}>← Назад</button>
+                    <div style={{ font: '700 24px Playfair Display, serif', color: '#fff', marginBottom: 6 }}>Как вас зовут?</div>
+                    <div style={{ font: '400 13px Inter', color: 'rgba(255,255,255,.45)', marginBottom: 24 }}>Шаг 1 из 4</div>
+                    <input type="text" placeholder="Ваше имя" value={form.name}
+                      onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                      style={{ width: '100%', padding: '16px 20px', borderRadius: 16, border: '1px solid rgba(226,183,85,.35)', background: 'rgba(255,255,255,.06)', color: '#fff', font: '500 16px Inter', outline: 'none', marginBottom: 20, boxSizing: 'border-box' }}
+                    />
+                    <button onClick={() => form.name.trim() && setOnboardStep(1)}
+                      style={{ width: '100%', padding: 16, borderRadius: 16, border: 'none', background: form.name.trim() ? 'linear-gradient(90deg,#8B5CF6,#E2B755)' : 'rgba(255,255,255,.1)', color: '#fff', font: '600 15px Inter', cursor: form.name.trim() ? 'pointer' : 'default' }}
+                    >Продолжить →</button>
+                  </div>
+                )}
+
+                {/* Шаг 1 — Дата рождения */}
+                {onboardStep === 1 && (
+                  <div>
+                    <button onClick={() => setOnboardStep(0)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,.4)', font: '500 13px Inter', cursor: 'pointer', marginBottom: 20, padding: 0 }}>← Назад</button>
+                    <div style={{ font: '700 24px Playfair Display, serif', color: '#fff', marginBottom: 6 }}>Дата рождения</div>
+                    <div style={{ font: '400 13px Inter', color: 'rgba(255,255,255,.45)', marginBottom: 24 }}>Шаг 2 из 4</div>
+                    <div style={{ font: '500 12px Inter', color: '#E2B755', letterSpacing: 1, marginBottom: 8, textTransform: 'uppercase' }}>Дата</div>
+                    <input type="date" value={form.date}
+                      onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
+                      style={{ width: '100%', padding: '14px 16px', borderRadius: 14, border: '1px solid rgba(226,183,85,.35)', background: 'rgba(255,255,255,.06)', color: '#fff', font: '500 15px Inter', outline: 'none', marginBottom: 16, boxSizing: 'border-box', colorScheme: 'dark' }}
+                    />
+                    <div style={{ font: '500 12px Inter', color: '#E2B755', letterSpacing: 1, marginBottom: 8, textTransform: 'uppercase' }}>Время <span style={{ color: 'rgba(255,255,255,.3)', fontSize: 11 }}>(если знаете)</span></div>
+                    <input type="time" value={form.time}
+                      onChange={(e) => setForm((f) => ({ ...f, time: e.target.value }))}
+                      style={{ width: '100%', padding: '14px 16px', borderRadius: 14, border: '1px solid rgba(255,255,255,.15)', background: 'rgba(255,255,255,.06)', color: '#fff', font: '500 15px Inter', outline: 'none', marginBottom: 24, boxSizing: 'border-box', colorScheme: 'dark' }}
+                    />
+                    <button onClick={() => form.date && setOnboardStep(2)}
+                      style={{ width: '100%', padding: 16, borderRadius: 16, border: 'none', background: form.date ? 'linear-gradient(90deg,#8B5CF6,#E2B755)' : 'rgba(255,255,255,.1)', color: '#fff', font: '600 15px Inter', cursor: form.date ? 'pointer' : 'default' }}
+                    >Продолжить →</button>
+                  </div>
+                )}
+
+                {/* Шаг 2 — Город */}
+                {onboardStep === 2 && (
+                  <div>
+                    <button onClick={() => setOnboardStep(1)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,.4)', font: '500 13px Inter', cursor: 'pointer', marginBottom: 20, padding: 0 }}>← Назад</button>
+                    <div style={{ font: '700 24px Playfair Display, serif', color: '#fff', marginBottom: 6 }}>Место рождения</div>
+                    <div style={{ font: '400 13px Inter', color: 'rgba(255,255,255,.45)', marginBottom: 24 }}>Шаг 3 из 4</div>
+                    <input type="text" placeholder="Город (например, Москва)" value={form.city}
+                      onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))}
+                      style={{ width: '100%', padding: '16px 20px', borderRadius: 16, border: '1px solid rgba(226,183,85,.35)', background: 'rgba(255,255,255,.06)', color: '#fff', font: '500 16px Inter', outline: 'none', marginBottom: 24, boxSizing: 'border-box' }}
+                    />
+                    <button onClick={() => setOnboardStep(3)}
+                      style={{ width: '100%', padding: 16, borderRadius: 16, border: 'none', background: 'linear-gradient(90deg,#8B5CF6,#E2B755)', color: '#fff', font: '600 15px Inter', cursor: 'pointer', marginBottom: 10 }}
+                    >Продолжить →</button>
+                    <button onClick={() => { setForm((f) => ({ ...f, city: '' })); setOnboardStep(3) }}
+                      style={{ width: '100%', padding: 14, borderRadius: 16, border: '1px solid rgba(255,255,255,.12)', background: 'transparent', color: 'rgba(255,255,255,.45)', font: '500 14px Inter', cursor: 'pointer' }}
+                    >Пропустить</button>
+                  </div>
+                )}
+
+                {/* Шаг 3 — Email + пароль */}
+                {onboardStep === 3 && (
+                  <div>
+                    <button onClick={() => setOnboardStep(2)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,.4)', font: '500 13px Inter', cursor: 'pointer', marginBottom: 20, padding: 0 }}>← Назад</button>
+                    <div style={{ font: '700 24px Playfair Display, serif', color: '#fff', marginBottom: 6 }}>Создайте аккаунт</div>
+                    <div style={{ font: '400 13px Inter', color: 'rgba(255,255,255,.45)', marginBottom: 24 }}>Шаг 4 из 4</div>
+                    <input type="email" placeholder="Email" value={emailForm.email}
+                      onChange={(e) => setEmailForm((f) => ({ ...f, email: e.target.value }))}
+                      style={{ width: '100%', padding: '14px 16px', borderRadius: 14, border: '1px solid rgba(226,183,85,.35)', background: 'rgba(255,255,255,.06)', color: '#fff', font: '500 15px Inter', outline: 'none', marginBottom: 12, boxSizing: 'border-box' }}
+                    />
+                    <input type="password" placeholder="Пароль (мин. 6 символов)" value={emailForm.password}
+                      onChange={(e) => setEmailForm((f) => ({ ...f, password: e.target.value }))}
+                      style={{ width: '100%', padding: '14px 16px', borderRadius: 14, border: '1px solid rgba(255,255,255,.15)', background: 'rgba(255,255,255,.06)', color: '#fff', font: '500 15px Inter', outline: 'none', marginBottom: 20, boxSizing: 'border-box' }}
+                    />
+                    {authError && <div style={{ color: '#f87171', font: '500 13px Inter', marginBottom: 12, textAlign: 'center' }}>{authError}</div>}
+                    <button onClick={registerEmail} disabled={authLoading}
+                      style={{ width: '100%', padding: 16, borderRadius: 16, border: 'none', background: 'linear-gradient(90deg,#8B5CF6,#E2B755)', color: '#fff', font: '600 15px Inter', cursor: 'pointer', opacity: authLoading ? .6 : 1 }}
+                    >
+                      {authLoading ? 'Создаём карту…' : 'Составить карту 🔮'}
+                    </button>
+                  </div>
+                )}
+
+                {/* Прогресс-точки */}
+                {authMethod === 'email_register' && (
+                  <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 28 }}>
+                    {[0,1,2,3].map((i) => (
+                      <div key={i} style={{ width: i === onboardStep ? 20 : 6, height: 6, borderRadius: 3, background: i === onboardStep ? '#E2B755' : i < onboardStep ? 'rgba(226,183,85,.4)' : 'rgba(255,255,255,.2)', transition: 'all .3s' }}/>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
           </div>
         </div>
       )}

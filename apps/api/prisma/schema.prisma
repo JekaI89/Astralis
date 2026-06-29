@@ -12,6 +12,7 @@ model User {
   telegramId      BigInt?   @unique
   name            String
   email           String?   @unique
+  passwordHash    String?
   avatarUrl       String?
   birthDate       DateTime
   birthTime       String?
@@ -37,6 +38,9 @@ model User {
   notifications      NotificationPreference?
   dailyHoroscopes    DailyHoroscope[]
   compatibilityReports CompatibilityReport[]
+  tarotReadings      TarotReading[]
+  pushSubscriptions  PushSubscription[]
+  payments           Payment[]
 
   @@map("users")
 }
@@ -152,4 +156,46 @@ model NotificationPreference {
   updatedAt DateTime @updatedAt
 
   @@map("notification_preferences")
+}
+
+model TarotReading {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  spread      String   // "single" | "three_card" | "celtic_cross"
+  question    String?
+  cards       Json     // массив { cardId, position, isReversed }
+  interpretation String
+  createdAt   DateTime @default(now())
+
+  @@map("tarot_readings")
+}
+
+model PushSubscription {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint   String   @unique
+  p256dh     String
+  auth       String
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  @@map("push_subscriptions")
+}
+
+model Payment {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider    String   // "telegram_stars" | "yookassa" | "stripe"
+  externalId  String?  @unique
+  amount      Int      // в минимальных единицах (копейки / stars)
+  currency    String   @default("XTR") // XTR = Telegram Stars
+  status      String   @default("pending") // pending | paid | failed | refunded
+  planMonths  Int      @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("payments")
 }
