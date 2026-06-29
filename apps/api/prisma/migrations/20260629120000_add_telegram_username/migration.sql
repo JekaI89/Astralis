@@ -1,1 +1,1 @@
-ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "telegramUsername" TEXT;
+ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "telegramUsername" TEXT;

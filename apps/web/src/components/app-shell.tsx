@@ -66,7 +66,7 @@ export function AppShell() {
   const [authError, setAuthError] = useState('')
   const [authLoading, setAuthLoading] = useState(false)
   const [onboardStep, setOnboardStep] = useState(0)
-  const [tgAuthCode, setTgAuthCode] = useState(() => sessionStorage.getItem('tg_auth_code') ?? '')
+  const [tgAuthCode, setTgAuthCode] = useState(() => typeof window !== 'undefined' ? (sessionStorage.getItem('tg_auth_code') ?? '') : '')
   const [userMeta, setUserMeta] = useState<{ email: string | null; telegramUsername: string | null; hasTelegram: boolean } | null>(null)
   const [linkEmailForm, setLinkEmailForm] = useState({ email: '', password: '' })
   const [linkEmailOpen, setLinkEmailOpen] = useState(false)
