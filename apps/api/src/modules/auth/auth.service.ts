@@ -32,7 +32,7 @@ export class AuthService {
       .map(([k, v]) => `${k}=${v}`)
       .join('\n')
 
-    const botToken = this.config.getOrThrow<string>('TELEGRAM_BOT_TOKEN')
+    const botToken = this.config.get<string>('TELEGRAM_BOT_TOKEN') ?? ''
     const secretKey = crypto.createHmac('sha256', 'WebAppData').update(botToken).digest()
     const expectedHash = crypto.createHmac('sha256', secretKey).update(dataCheckString).digest('hex')
 

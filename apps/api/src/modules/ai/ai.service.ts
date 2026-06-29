@@ -20,7 +20,7 @@ export class AiService {
     private astro: AstroService,
   ) {
     this.anthropic = new Anthropic({
-      apiKey: this.config.getOrThrow('ANTHROPIC_API_KEY'),
+      apiKey: this.config.get('ANTHROPIC_API_KEY') ?? '',
     })
   }
 

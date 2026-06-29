@@ -13,9 +13,9 @@ export class PushService implements OnModuleInit {
 
   onModuleInit() {
     webpush.setVapidDetails(
-      this.config.getOrThrow('VAPID_EMAIL'),
-      this.config.getOrThrow('VAPID_PUBLIC_KEY'),
-      this.config.getOrThrow('VAPID_PRIVATE_KEY'),
+      this.config.get('VAPID_EMAIL') ?? '',
+      this.config.get('VAPID_PUBLIC_KEY') ?? '',
+      this.config.get('VAPID_PRIVATE_KEY') ?? '',
     )
   }
 

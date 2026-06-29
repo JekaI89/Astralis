@@ -41,7 +41,7 @@ export class SchedulerService {
         await this.push.sendTelegram(
           Number(pref.user.telegramId),
           text,
-          this.config.getOrThrow('TELEGRAM_BOT_TOKEN'),
+          this.config.get('TELEGRAM_BOT_TOKEN') ?? '',
         )
       } catch (err) {
         this.logger.error(`Failed to send horoscope to user ${pref.userId}:`, err)

@@ -14,7 +14,7 @@ import { TelegramStrategy } from './strategies/telegram.strategy'
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        secret: config.getOrThrow('JWT_SECRET'),
+        secret: config.get('JWT_SECRET') ?? 'change_me_in_production',
         signOptions: { expiresIn: config.get('JWT_EXPIRES_IN', '7d') },
       }),
     }),
