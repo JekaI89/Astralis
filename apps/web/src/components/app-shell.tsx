@@ -90,6 +90,24 @@ export function AppShell() {
     if (saved) {
       try { setBirthData(JSON.parse(saved) as BirthData) } catch { /* ignore */ }
     }
+    // Если есть токен — загрузить профиль с API
+    const token = localStorage.getItem(TOKEN_KEY)
+    if (token && API_URL) {
+      fetch(`${API_URL}/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => r.ok ? r.json() : null)
+        .then((u: { name?: string; birthDate?: string; birthTime?: string; birthPlace?: string } | null) => {
+          if (!u?.name) return
+          const bd: BirthData = {
+            name: u.name,
+            date: u.birthDate ? u.birthDate.split('T')[0]! : '',
+            time: u.birthTime ?? '',
+            city: u.birthPlace ?? '',
+          }
+          setBirthData(bd)
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(bd))
+        })
+        .catch(() => {})
+    }
   }, [])
 
   const onSplashEnd = useCallback((e: React.AnimationEvent) => {
@@ -110,7 +128,7 @@ export function AppShell() {
   const loginWithTelegram = async () => {
     // Если внутри Mini App — используем initData
     const tg = (window as unknown as { Telegram?: { WebApp?: { initData?: string } } }).Telegram?.WebApp
-    if (tg?.initData && API_URL) {
+    if (tg?.initData && tg.initData.length > 10 && API_URL) {
       setAuthLoading(true)
       setAuthError('')
       try {
@@ -122,6 +140,16 @@ export function AppShell() {
         const data = await res.json() as { token?: string; message?: string }
         if (!res.ok) throw new Error(data.message ?? 'Ошибка авторизации')
         localStorage.setItem(TOKEN_KEY, data.token ?? '')
+        fetch(`${API_URL}/auth/me`, { headers: { Authorization: `Bearer ${data.token}` } })
+          .then(r => r.ok ? r.json() : null)
+          .then((u: { name?: string; birthDate?: string; birthTime?: string; birthPlace?: string } | null) => {
+            if (u?.name) {
+              const bd: BirthData = { name: u.name, date: u.birthDate?.split('T')[0] ?? '', time: u.birthTime ?? '', city: u.birthPlace ?? '' }
+              setBirthData(bd)
+              localStorage.setItem(STORAGE_KEY, JSON.stringify(bd))
+            }
+          })
+          .catch(() => {})
         setPhase('app')
         return
       } catch (e) {
@@ -162,6 +190,17 @@ export function AppShell() {
           clearInterval(timer)
           setTgPollTimer(null)
           localStorage.setItem(TOKEN_KEY, data.token)
+          // Загрузить профиль
+          fetch(`${API_URL}/auth/me`, { headers: { Authorization: `Bearer ${data.token}` } })
+            .then(r => r.ok ? r.json() : null)
+            .then((u: { name?: string; birthDate?: string; birthTime?: string; birthPlace?: string } | null) => {
+              if (u?.name) {
+                const bd: BirthData = { name: u.name, date: u.birthDate?.split('T')[0] ?? '', time: u.birthTime ?? '', city: u.birthPlace ?? '' }
+                setBirthData(bd)
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(bd))
+              }
+            })
+            .catch(() => {})
           setPhase('app')
         } else if (data.status === 'expired') {
           clearInterval(timer)

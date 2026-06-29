@@ -55,7 +55,8 @@ export class TelegramService implements OnModuleInit {
   }
 
   private async handleStart(ctx: Context & { startPayload?: string }) {
-    const payload = ctx.startPayload ?? (ctx.message && 'text' in ctx.message ? ctx.message.text.split(' ')[1] : '')
+    const textPayload = ctx.message && 'text' in ctx.message ? (ctx.message.text.split(' ')[1] ?? '') : ''
+    const payload = (ctx.startPayload && ctx.startPayload.length > 0 ? ctx.startPayload : textPayload) ?? ''
 
     if (payload?.startsWith('auth_')) {
       const code = payload.slice(5)

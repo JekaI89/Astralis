@@ -1,4 +1,5 @@
-import { Body, Controller, Post, Get, Param, HttpCode } from '@nestjs/common'
+import { Body, Controller, Post, Get, Param, HttpCode, Request, UseGuards } from '@nestjs/common'
+import { AuthGuard } from '@nestjs/passport'
 import { ApiOperation, ApiTags } from '@nestjs/swagger'
 import { IsEmail, IsString, MinLength, IsOptional, IsDateString } from 'class-validator'
 import { AuthService } from './auth.service'
@@ -49,6 +50,13 @@ export class AuthController {
   @ApiOperation({ summary: 'Вход через email' })
   login(@Body() dto: LoginEmailDto) {
     return this.auth.loginWithEmail(dto.email, dto.password)
+  }
+
+  @Get('me')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiOperation({ summary: 'Получить текущего пользователя' })
+  getMe(@Request() req: { user: { id: string; name: string; email: string | null; birthDate: Date; birthTime: string | null; birthPlace: string | null; avatarUrl: string | null; isPremium: boolean } }) {
+    return req.user
   }
 
   @Get('telegram-code')
