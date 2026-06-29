@@ -10,11 +10,7 @@
     "experimentalDecorators": true,
     "strictPropertyInitialization": false,
     "exactOptionalPropertyTypes": false,
-    "noUncheckedIndexedAccess": false,
-    "paths": {
-      "@astralis/types": ["../../packages/types/src/index.ts"],
-      "@astralis/core": ["../../packages/core/src/index.ts"]
-    }
+    "noUncheckedIndexedAccess": false
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]
