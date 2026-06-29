@@ -33,9 +33,24 @@ export default function OnboardingPage() {
   const [authLoading, setAuthLoading] = useState(false)
 
   useEffect(() => {
-    // Clean up any leftover bot-flow session storage
     if (typeof window !== 'undefined') sessionStorage.removeItem('tg_auth_code')
   }, [])
+
+  // Keep window.onTelegramAuth always up-to-date so stale closures can't break auth
+  useEffect(() => {
+    window.onTelegramAuth = async (user) => {
+      setAuthLoading(true)
+      setAuthError('')
+      try {
+        await store.loginWithTelegramWidget(user)
+        router.replace('/')
+      } catch (e) {
+        console.error('TG widget auth error:', e)
+        setAuthError(e instanceof Error ? e.message : 'Ошибка авторизации через Telegram')
+        setAuthLoading(false)
+      }
+    }
+  }, [store, router])
 
   const onSplashEnd = (e: React.AnimationEvent) => {
     if (e.animationName !== 'splashSeq') return
@@ -50,25 +65,16 @@ export default function OnboardingPage() {
       setAuthError('')
       store.loginWithTelegram(tg.initData)
         .then(() => router.replace('/'))
-        .catch((e: unknown) => setAuthError(e instanceof Error ? e.message : 'Ошибка авторизации'))
-        .finally(() => setAuthLoading(false))
+        .catch((e: unknown) => {
+          console.error('TG miniapp auth error:', e)
+          setAuthError(e instanceof Error ? e.message : 'Ошибка авторизации')
+          setAuthLoading(false)
+        })
       return
     }
 
-    // Widget path — inject script once
+    // Widget path — inject script once, then let the iframe handle clicks
     if (!document.getElementById('tg-widget-script')) {
-      window.onTelegramAuth = async (user) => {
-        setAuthLoading(true)
-        setAuthError('')
-        try {
-          await store.loginWithTelegramWidget(user)
-          router.replace('/')
-        } catch (e) {
-          setAuthError(e instanceof Error ? e.message : 'Ошибка авторизации')
-        } finally {
-          setAuthLoading(false)
-        }
-      }
       const s = document.createElement('script')
       s.id = 'tg-widget-script'
       s.src = 'https://telegram.org/js/telegram-widget.js?22'
@@ -77,11 +83,13 @@ export default function OnboardingPage() {
       s.setAttribute('data-onauth', 'onTelegramAuth(user)')
       s.setAttribute('data-request-access', 'write')
       s.async = true
-      document.getElementById('tg-widget-container')?.appendChild(s)
-    } else {
-      // re-click the widget button if already injected
-      document.getElementById('tg-widget-container')?.querySelector('iframe')?.click()
+      const container = document.getElementById('tg-widget-container')
+      if (container) {
+        container.innerHTML = ''
+        container.appendChild(s)
+      }
     }
+    // After script injection the user sees the real Telegram button (iframe) and clicks it
   }, [store, router])
 
   const handleLoginEmail = async () => {
@@ -284,25 +292,36 @@ export default function OnboardingPage() {
                   {authLoading ? (
                     <div style={{
                       width: '100%', padding: 16, borderRadius: 16,
-                      background: 'linear-gradient(90deg,#229ED9,#1a8ac4)',
+                      background: 'rgba(34,158,217,.4)',
                       color: '#fff', font: '600 15px Inter',
-                      textAlign: 'center', opacity: 0.6,
+                      textAlign: 'center',
                     }}>Авторизация…</div>
                   ) : (
-                    <div
-                      id="tg-widget-container"
-                      onClick={handleTelegramWidget}
-                      style={{
-                        width: '100%', padding: 16, borderRadius: 16, border: 'none',
-                        background: 'linear-gradient(90deg,#229ED9,#1a8ac4)',
-                        color: '#fff', font: '600 15px Inter',
-                        cursor: 'pointer', display: 'flex',
-                        alignItems: 'center', justifyContent: 'center', gap: 10,
-                        boxSizing: 'border-box', position: 'relative', overflow: 'hidden',
-                      }}
-                    >
-                      <span style={{ fontSize: 20 }}>✈️</span>
-                      Войти через Telegram
+                    <div style={{ position: 'relative' }}>
+                      {/* Кнопка-подложка — кликается до загрузки iframe */}
+                      <div
+                        onClick={handleTelegramWidget}
+                        style={{
+                          width: '100%', padding: 16, borderRadius: 16,
+                          background: 'linear-gradient(90deg,#229ED9,#1a8ac4)',
+                          color: '#fff', font: '600 15px Inter',
+                          cursor: 'pointer', display: 'flex',
+                          alignItems: 'center', justifyContent: 'center', gap: 10,
+                          boxSizing: 'border-box',
+                        }}
+                      >
+                        <span style={{ fontSize: 20 }}>✈️</span>
+                        Войти через Telegram
+                      </div>
+                      {/* Telegram widget iframe рендерится здесь и перекрывает кнопку */}
+                      <div
+                        id="tg-widget-container"
+                        style={{
+                          position: 'absolute', inset: 0,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          borderRadius: 16, overflow: 'hidden',
+                        }}
+                      />
                     </div>
                   )}
                 </div>
