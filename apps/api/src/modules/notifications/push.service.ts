@@ -12,11 +12,12 @@ export class PushService implements OnModuleInit {
   constructor(private config: ConfigService) {}
 
   onModuleInit() {
-    webpush.setVapidDetails(
-      this.config.get('VAPID_EMAIL') ?? '',
-      this.config.get('VAPID_PUBLIC_KEY') ?? '',
-      this.config.get('VAPID_PRIVATE_KEY') ?? '',
-    )
+    const email = this.config.get<string>('VAPID_EMAIL')
+    const pubKey = this.config.get<string>('VAPID_PUBLIC_KEY')
+    const privKey = this.config.get<string>('VAPID_PRIVATE_KEY')
+    if (email && pubKey && privKey) {
+      webpush.setVapidDetails(email, pubKey, privKey)
+    }
   }
 
   async sendPush(subscription: PushSubscription, payload: { title: string; body: string; data?: object }) {
