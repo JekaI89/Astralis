@@ -134,11 +134,11 @@ export class SwissEphemerisService {
   private readonly logger = new Logger(SwissEphemerisService.name)
 
   async calculateNatalChart(params: {
-    userId: string
     date: string   // YYYY-MM-DD
     time: string   // HH:MM or empty
     lat: number
     lng: number
+    timezone?: string
   }): Promise<NatalChart> {
     const [year, month, day] = params.date.split('-').map(Number) as [number, number, number]
     const [hh, mm] = (params.time || '12:00').split(':').map(Number) as [number, number]
