@@ -748,7 +748,6 @@ export function AppShell() {
                 )}
               </div>
             )}
-          </div>
 
             {/* PROFILE */}
             {tab === 'profile' && (
@@ -798,24 +797,28 @@ export function AppShell() {
                   </button>
                 ) : (
                   <button onClick={() => { localStorage.removeItem(TOKEN_KEY); localStorage.removeItem(STORAGE_KEY); setBirthData(null); setPhase('onboarding'); setAuthMethod('choose'); setOnboardStep(0) }}
-                    style={{ width: '100%', padding: 15, borderRadius: 16, border: '1px solid rgba(255,255,255,.12)', background: 'transparent', color: 'rgba(255,255,255,.5)', font: '500 14px Inter', cursor: 'pointer' }}>
+                    style={{ width: '100%', padding: 15, borderRadius: 16, border: '1px solid rgba(255,255,255,.12)', background: 'transparent', color: 'rgba(255,255,255,.5)', font: '500 14px Inter', cursor: 'pointer', marginBottom: 10 }}>
                     Выйти из аккаунта
                   </button>
                 )}
+                <button onClick={() => { localStorage.removeItem(TOKEN_KEY); localStorage.removeItem(STORAGE_KEY); setBirthData(null); setPhase('onboarding'); setAuthMethod('choose'); setOnboardStep(0) }}
+                  style={{ width: '100%', padding: 12, borderRadius: 14, border: '1px solid rgba(255,0,0,.15)', background: 'transparent', color: 'rgba(255,80,80,.5)', font: '400 12px Inter', cursor: 'pointer' }}>
+                  Сбросить данные и начать заново
+                </button>
               </div>
             )}
 
           </div>
 
           {/* TAB BAR */}
-          <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '10px 22px 26px', background: 'linear-gradient(180deg,rgba(10,9,21,0),rgba(10,9,21,.85) 40%)', backdropFilter: 'blur(14px)', borderTop: '1px solid rgba(255,255,255,.07)', display: 'flex', justifyContent: 'space-around', zIndex: 40 }}>
-            <button onClick={() => goTab('home')} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, padding: '4px 12px' }}>
+          <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '10px 8px 26px', background: 'linear-gradient(180deg,rgba(10,9,21,0),rgba(10,9,21,.85) 40%)', backdropFilter: 'blur(14px)', borderTop: '1px solid rgba(255,255,255,.07)', display: 'flex', justifyContent: 'space-around', zIndex: 40 }}>
+            <button onClick={() => goTab('home')} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, padding: '4px 8px', flex: 1 }}>
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
                 <path d="M12 3a7 7 0 1 0 6.5 9.6A5.5 5.5 0 0 1 12 3z" fill={tabColor('home')} opacity={tab === 'home' ? 0.18 : 0} stroke={tabColor('home')} strokeWidth="1.4" strokeLinejoin="round"/>
               </svg>
               <span style={{ font: '600 10px Inter', color: tabColor('home') }}>Гороскоп</span>
             </button>
-            <button onClick={() => goTab('natal')} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, padding: '4px 12px' }}>
+            <button onClick={() => goTab('natal')} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, padding: '4px 8px', flex: 1 }}>
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
                 <circle cx="12" cy="12" r="8.5" stroke={tabColor('natal')} strokeWidth="1.4"/>
                 <circle cx="12" cy="12" r="2.2" fill={tabColor('natal')}/>
@@ -826,14 +829,14 @@ export function AppShell() {
               </svg>
               <span style={{ font: '600 10px Inter', color: tabColor('natal') }}>Карта</span>
             </button>
-            <button onClick={() => goTab('synastry')} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, padding: '4px 12px' }}>
+            <button onClick={() => goTab('synastry')} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, padding: '4px 8px', flex: 1 }}>
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
                 <circle cx="9" cy="12" r="6" stroke={tabColor('synastry')} strokeWidth="1.4"/>
                 <circle cx="15" cy="12" r="6" stroke={tabColor('synastry')} strokeWidth="1.4"/>
               </svg>
               <span style={{ font: '600 10px Inter', color: tabColor('synastry') }}>Союз</span>
             </button>
-            <button onClick={() => goTab('profile')} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, padding: '4px 12px' }}>
+            <button onClick={() => goTab('profile')} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, padding: '4px 8px', flex: 1 }}>
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
                 <circle cx="12" cy="8" r="3.5" stroke={tabColor('profile')} strokeWidth="1.4"/>
                 <path d="M5 19c0-3.314 3.134-6 7-6s7 2.686 7 6" stroke={tabColor('profile')} strokeWidth="1.4" strokeLinecap="round"/>
