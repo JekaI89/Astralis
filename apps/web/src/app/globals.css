@@ -29,6 +29,15 @@ body { margin: 0; overscroll-behavior: none; }
 
   --font-serif: 'Playfair Display', Georgia, serif;
   --font-sans:  'Inter', system-ui, sans-serif;
+
+  /* ─── Component aliases ──────────────────────────── */
+  --color-surface: rgba(255,255,255,.055);
+  --color-border: rgba(255,255,255,.12);
+  --color-text-muted: rgba(255,255,255,.45);
+  --color-accent: #E2B755;
+  --color-primary: #8B5CF6;
+  --color-primary-light: #E2B755;
+  --color-bg: #0A0915;
 }
 
 html, body {
