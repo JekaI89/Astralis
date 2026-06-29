@@ -196,10 +196,10 @@ export class SwissEphemerisService {
     const asc = degToSign(ascDeg)
     const mc  = degToSign(mcDeg)
 
-    this.logger.log(`Natal chart calculated for userId=${params.userId}, ASC=${asc.sign} ${asc.degree.toFixed(1)}°`)
+    this.logger.log(`Natal chart calculated, ASC=${asc.sign} ${asc.degree.toFixed(1)}°`)
 
     return {
-      userId: params.userId,
+      userId: '',
       calculatedAt: new Date().toISOString(),
       planets,
       houses: housesData,
