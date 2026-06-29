@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
-import type { NatalChart, LunarDay, Transit, ZodiacSign, Planet, AspectType, House } from '@astralis/types'
+import type { NatalChart, LunarDay, Transit, ZodiacSign, Planet, House } from '@astralis/types'
 
 @Injectable()
 export class EphemerisService {
@@ -54,28 +54,28 @@ export class EphemerisService {
   }
 
   private stubNatalChart(userId: string): NatalChart {
-    const houseRulers: Planet[] = ['Mars','Venus','Mercury','Moon','Sun','Mercury','Venus','Pluto','Jupiter','Saturn','Uranus','Neptune']
+    const houseRulers: Planet[] = ['mars','venus','mercury','moon','sun','mercury','venus','pluto','jupiter','saturn','uranus','neptune']
     return {
       userId,
       calculatedAt: new Date().toISOString(),
       planets: [
-        { planet: 'Sun' as Planet,     sign: 'Leo' as ZodiacSign,     degree: 12.5, house: 5 as House, isRetrograde: false, speed: 0.98 },
-        { planet: 'Moon' as Planet,    sign: 'Scorpio' as ZodiacSign, degree: 7.3,  house: 8 as House, isRetrograde: false, speed: 13.2 },
-        { planet: 'Mercury' as Planet, sign: 'Virgo' as ZodiacSign,   degree: 3.1,  house: 6 as House, isRetrograde: false, speed: 1.4 },
-        { planet: 'Venus' as Planet,   sign: 'Gemini' as ZodiacSign,  degree: 21.0, house: 2 as House, isRetrograde: false, speed: 1.2 },
-        { planet: 'Mars' as Planet,    sign: 'Aries' as ZodiacSign,   degree: 15.8, house: 1 as House, isRetrograde: false, speed: 0.7 },
+        { planet: 'sun',     sign: 'leo',         degree: 12.5, house: 5, isRetrograde: false, speed: 0.98 },
+        { planet: 'moon',    sign: 'scorpio',      degree: 7.3,  house: 8, isRetrograde: false, speed: 13.2 },
+        { planet: 'mercury', sign: 'virgo',        degree: 3.1,  house: 6, isRetrograde: false, speed: 1.4 },
+        { planet: 'venus',   sign: 'gemini',       degree: 21.0, house: 2, isRetrograde: false, speed: 1.2 },
+        { planet: 'mars',    sign: 'aries',        degree: 15.8, house: 1, isRetrograde: false, speed: 0.7 },
       ],
       houses: Array.from({ length: 12 }, (_, i) => ({
         number: (i + 1) as House,
-        sign: 'Leo' as ZodiacSign,
+        sign: 'leo' as ZodiacSign,
         degree: i * 30,
-        ruler: houseRulers[i] as Planet,
+        ruler: houseRulers[i]!,
       })),
       aspects: [
-        { planet1: 'Sun' as Planet, planet2: 'Moon' as Planet, type: 'trine' as AspectType, orb: 2.1, isApplying: true },
+        { planet1: 'sun', planet2: 'moon', type: 'trine', orb: 2.1, isApplying: true },
       ],
-      ascendant: { sign: 'Sagittarius' as ZodiacSign, degree: 14.2 },
-      midheaven: { sign: 'Virgo' as ZodiacSign, degree: 8.5 },
+      ascendant: { sign: 'sagittarius', degree: 14.2 },
+      midheaven: { sign: 'virgo', degree: 8.5 },
     }
   }
 
@@ -83,7 +83,7 @@ export class EphemerisService {
     return {
       date,
       lunarDay: 7,
-      moonSign: 'Cancer' as ZodiacSign,
+      moonSign: 'cancer',
       moonPhase: 'waxing_crescent',
       illumination: 42,
       isVoidOfCourse: false,
