@@ -66,7 +66,7 @@ export function AppShell() {
   const [authError, setAuthError] = useState('')
   const [authLoading, setAuthLoading] = useState(false)
   const [onboardStep, setOnboardStep] = useState(0)
-  const [tgAuthCode, setTgAuthCode] = useState('')
+  const [tgAuthCode, setTgAuthCode] = useState(() => sessionStorage.getItem('tg_auth_code') ?? '')
   const [tgPollTimer, setTgPollTimer] = useState<ReturnType<typeof setInterval> | null>(null)
   const isInTelegram = typeof window !== 'undefined' && !!((window as unknown as { Telegram?: { WebApp?: { initData?: string } } }).Telegram?.WebApp?.initData)
   const [synStage, setSynStage] = useState<SynStage>('input')
@@ -84,6 +84,47 @@ export function AppShell() {
       if (tgPollTimer) clearInterval(tgPollTimer)
     }
   }, [tgPollTimer])
+
+  // Проверить сохранённый код при возврате в Mini App
+  useEffect(() => {
+    const checkPendingCode = async () => {
+      const code = sessionStorage.getItem('tg_auth_code')
+      if (!code || !API_URL) return
+      try {
+        const res = await fetch(`${API_URL}/auth/telegram-poll/${code}`)
+        const data = await res.json() as { status: string; token?: string }
+        if (data.status === 'ok' && data.token) {
+          sessionStorage.removeItem('tg_auth_code')
+          localStorage.setItem(TOKEN_KEY, data.token)
+          fetch(`${API_URL}/auth/me`, { headers: { Authorization: `Bearer ${data.token}` } })
+            .then(r => r.ok ? r.json() : null)
+            .then((u: { name?: string; birthDate?: string; birthTime?: string; birthPlace?: string } | null) => {
+              if (u?.name) {
+                const bd: BirthData = { name: u.name, date: u.birthDate?.split('T')[0] ?? '', time: u.birthTime ?? '', city: u.birthPlace ?? '' }
+                setBirthData(bd)
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(bd))
+              }
+            }).catch(() => {})
+          setPhase('app')
+        } else if (data.status === 'pending') {
+          // Код ещё ожидает — показать экран и продолжить polling
+          setAuthMethod('tg_bot')
+          if (phase === 'onboarding') startPolling(code)
+        } else {
+          sessionStorage.removeItem('tg_auth_code')
+        }
+      } catch { /* ignore */ }
+    }
+
+    // Проверить сразу при загрузке
+    void checkPendingCode()
+
+    // Проверить когда пользователь возвращается (из чата бота)
+    const onVisible = () => { if (!document.hidden) void checkPendingCode() }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY)
@@ -169,6 +210,7 @@ export function AppShell() {
       const res = await fetch(`${API_URL}/auth/telegram-code`)
       const data = await res.json() as { code?: string }
       if (!data.code) throw new Error('Не удалось получить код')
+      sessionStorage.setItem('tg_auth_code', data.code)
       setTgAuthCode(data.code)
       setAuthMethod('tg_bot')
       startPolling(data.code)
@@ -189,6 +231,7 @@ export function AppShell() {
         if (data.status === 'ok' && data.token) {
           clearInterval(timer)
           setTgPollTimer(null)
+          sessionStorage.removeItem('tg_auth_code')
           localStorage.setItem(TOKEN_KEY, data.token)
           // Загрузить профиль
           fetch(`${API_URL}/auth/me`, { headers: { Authorization: `Bearer ${data.token}` } })
