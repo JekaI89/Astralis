@@ -55,7 +55,7 @@ export function CompatibilityReport({ contactId, contactName, userInitial }: Pro
   const sphereKeys = Object.keys(SPHERE_LABELS) as (keyof typeof SPHERE_LABELS)[]
   const sphereValues: Record<string, number> = data?.synastryScore
     ? (() => {
-        const src = data.synastryScore as Record<string, number>
+        const src = data.synastryScore as unknown as Record<string, number>
         const [e, i, p, d] = sphereKeys.map((k) =>
           src[k] ?? src.emotional ?? src.love ?? src.romance ?? 70
         )
