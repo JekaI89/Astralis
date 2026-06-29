@@ -12,7 +12,7 @@ export class AstroService {
 
   async getNatalChart(userId: string): Promise<NatalChart> {
     const cached = await this.prisma.natalChart.findUnique({ where: { userId } })
-    if (cached) return cached.data as NatalChart
+    if (cached) return cached.data as unknown as NatalChart
 
     const user = await this.prisma.user.findUnique({ where: { id: userId } })
     if (!user?.birthLat || !user?.birthLng) {

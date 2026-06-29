@@ -19,7 +19,7 @@ export class CompatibilityService {
     const cached = await this.prisma.compatibilityReport.findUnique({
       where: { userId_contactId: { userId, contactId } },
     })
-    if (cached) return cached.data as CompatibilityReport
+    if (cached) return cached.data as unknown as CompatibilityReport
 
     const [userChart, numerologyProfile] = await Promise.all([
       this.astro.getNatalChart(userId),

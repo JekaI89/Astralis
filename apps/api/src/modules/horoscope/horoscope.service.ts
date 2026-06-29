@@ -18,7 +18,7 @@ export class HoroscopeService {
     const cached = await this.prisma.dailyHoroscope.findUnique({
       where: { userId_date: { userId, date: new Date(date) } },
     })
-    if (cached) return cached.data as PersonalDayForecast
+    if (cached) return cached.data as unknown as PersonalDayForecast
 
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } })
     const birthDateStr = user.birthDate.toISOString().split('T')[0]!
