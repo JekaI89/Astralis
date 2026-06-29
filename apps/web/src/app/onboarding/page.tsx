@@ -116,7 +116,7 @@ export default function OnboardingPage() {
     try {
       const code = await store.startTelegramBotFlow()
       setTgAuthCode(code)
-      setAuthMethod('tg_bot')
+      window.open(`https://t.me/NovaSouI_bot?start=auth_${code}`, '_blank')
       startPolling(code)
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Ошибка'
@@ -334,7 +334,7 @@ export default function OnboardingPage() {
                     color: '#fff',
                     font: '600 15px Inter',
                     cursor: 'pointer',
-                    marginBottom: 12,
+                    marginBottom: 8,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -343,8 +343,17 @@ export default function OnboardingPage() {
                   }}
                 >
                   <span style={{ fontSize: 20 }}>✈️</span>
-                  {authLoading ? 'Подключаемся…' : 'Войти через Telegram'}
+                  {authLoading ? 'Открываем бот…' : 'Войти через Telegram'}
                 </button>
+                {tgAuthCode && !authLoading && (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 12 }}>
+                    <div className="anim-float" style={{ width: 7, height: 7, borderRadius: '50%', background: '#4ade80', boxShadow: '0 0 8px #4ade80' }} />
+                    <span style={{ font: '400 12px Inter', color: 'rgba(255,255,255,.45)' }}>
+                      Нажмите СТАРТ в боте и вернитесь
+                    </span>
+                    <button onClick={() => { stopPolling(); setTgAuthCode('') }} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,.25)', font: '400 12px Inter', cursor: 'pointer' }}>✕</button>
+                  </div>
+                )}
                 {authError && (
                   <div
                     style={{
