@@ -45,7 +45,7 @@ export function AppShell() {
   const [phase, setPhase] = useState<Phase>('splash')
   const [tab, setTab] = useState<Tab>('home')
   const [dayTab, setDayTab] = useState<DayTab>('today')
-  const [selectedPlanet, setSelectedPlanet] = useState<(PlanetData & { x: number; y: number }) | null>(null)
+  const [selectedPlanet, setSelectedPlanet] = useState<(PlanetData & { x: number; y: number; fill: string; halo: number; strokeW: number; fontSize: number }) | null>(null)
   const [synStage, setSynStage] = useState<SynStage>('input')
   const [partnerAdded, setPartnerAdded] = useState(false)
   const [score, setScore] = useState(0)
