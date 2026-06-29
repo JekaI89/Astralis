@@ -8,8 +8,8 @@ const NAV_ITEMS = [
   { href: '/',              label: 'Гороскоп',     icon: '☼' },
   { href: '/chart',         label: 'Карта',        icon: '✶' },
   { href: '/compatibility', label: 'Союзы',        icon: '♥' },
-  { href: '/numerology',   label: 'Нумеро',       icon: '⬡' },
-  { href: '/ai',           label: 'Астролог',     icon: '✦' },
+  { href: '/tarot',         label: 'Таро',         icon: '🃏' },
+  { href: '/ai',            label: 'Астролог',     icon: '✦' },
 ]
 
 export function BottomNav() {
