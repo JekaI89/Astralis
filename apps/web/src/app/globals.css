@@ -2,28 +2,70 @@
 @tailwind components;
 @tailwind utilities;
 
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Inter:wght@400;500;600&display=swap');
+
+/* ─── Reset ─────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+::-webkit-scrollbar { display: none; }
+body { margin: 0; overscroll-behavior: none; }
+
+/* ─── Design tokens ──────────────────────────────── */
 :root {
-  --color-bg: #0D0D1A;
-  --color-surface: #161628;
-  --color-surface-2: #1E1E38;
-  --color-border: #2A2A4A;
-  --color-primary: #9B5DE5;
-  --color-primary-light: #C77DFF;
-  --color-accent: #F72585;
-  --color-gold: #FFD700;
-  --color-text: #E8E8F0;
-  --color-text-muted: #8888AA;
+  --gold:    #E2B755;
+  --gold-d:  #b98f33;
+  --purple:  #8B5CF6;
+  --purple-d:#5b3aa6;
+
+  --bg-grad: linear-gradient(168deg, #0A0915 0%, #120C24 55%, #160F29 100%);
+  --surface: rgba(255,255,255,.055);
+  --surface-border: rgba(255,255,255,.12);
+  --surface-2: rgba(255,255,255,.04);
+
+  --text:    #ffffff;
+  --text-60: rgba(255,255,255,.6);
+  --text-50: rgba(255,255,255,.5);
+  --text-45: rgba(255,255,255,.45);
+  --text-35: rgba(255,255,255,.35);
+
+  --font-serif: 'Playfair Display', Georgia, serif;
+  --font-sans:  'Inter', system-ui, sans-serif;
 }
 
-/* Telegram Mini App — убираем скролл bounce */
 html, body {
-  background-color: var(--color-bg);
-  color: var(--color-text);
-  overscroll-behavior: none;
-  -webkit-tap-highlight-color: transparent;
+  background: #0A0915;
+  color: #fff;
+  font-family: var(--font-sans);
 }
 
-/* Безопасная зона для iOS */
-.safe-area-bottom {
-  padding-bottom: env(safe-area-inset-bottom, 16px);
+/* ─── Animations ─────────────────────────────────── */
+@keyframes splashSeq   { 0%{opacity:0} 12%{opacity:1} 80%{opacity:1} 100%{opacity:0} }
+@keyframes constDraw   { to { stroke-dashoffset: 0 } }
+@keyframes twinkle     { 0%,100%{opacity:.3} 50%{opacity:1} }
+@keyframes cardFlip    { 0%{opacity:0;transform:perspective(1100px) rotateY(38deg)} 100%{opacity:1;transform:perspective(1100px) rotateY(0)} }
+@keyframes sheetUp     { from{transform:translateY(110%)} to{transform:translateY(0)} }
+@keyframes floatMoon   { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-7px)} }
+@keyframes orbit       { to{transform:rotate(360deg)} }
+@keyframes orbitR      { to{transform:rotate(-360deg)} }
+@keyframes fadeUp      { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
+@keyframes scoreGlow   { 0%,100%{filter:drop-shadow(0 0 14px rgba(226,183,85,.45))} 50%{filter:drop-shadow(0 0 30px rgba(226,183,85,.8))} }
+
+.anim-fadeup  { animation: fadeUp .45s ease both; }
+.anim-cardflip{ animation: cardFlip .55s cubic-bezier(.2,.7,.2,1) both; }
+.anim-sheetup { animation: sheetUp .4s cubic-bezier(.2,.8,.2,1); }
+.anim-float   { animation: floatMoon 5.5s ease-in-out infinite; }
+.anim-orbit   { animation: orbit 7s linear infinite; }
+.anim-orbitr  { animation: orbitR 5s linear infinite; }
+.anim-splash  { animation: splashSeq 3.4s ease forwards; }
+.anim-scoreglow { animation: scoreGlow 3s ease-in-out infinite; }
+
+/* ─── Glass card ─────────────────────────────────── */
+.glass {
+  background: var(--surface);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--surface-border);
+  border-radius: 24px;
 }
+
+/* ─── Safe bottom ────────────────────────────────── */
+.safe-bottom { padding-bottom: env(safe-area-inset-bottom, 20px); }
