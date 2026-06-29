@@ -126,6 +126,54 @@ export class AuthService {
     return { token, user: this.safeUser(user) }
   }
 
+  // ─── Telegram Login Widget ──────────────────────────────────────────
+  async loginWithTelegramWidget(data: {
+    id: number
+    first_name: string
+    last_name?: string
+    username?: string
+    photo_url?: string
+    auth_date: number
+    hash: string
+  }) {
+    const { hash, ...fields } = data
+    const dataCheckString = Object.keys(fields)
+      .sort()
+      .map((k) => `${k}=${fields[k as keyof typeof fields]}`)
+      .join('\n')
+
+    const botToken = this.config.get<string>('TELEGRAM_BOT_TOKEN') ?? ''
+    const secretKey = crypto.createHash('sha256').update(botToken).digest()
+    const expectedHash = crypto.createHmac('sha256', secretKey).update(dataCheckString).digest('hex')
+
+    if (!crypto.timingSafeEqual(Buffer.from(expectedHash), Buffer.from(hash))) {
+      throw new UnauthorizedException('Invalid Telegram widget data')
+    }
+
+    const age = Math.floor(Date.now() / 1000) - data.auth_date
+    if (age > 86400) throw new UnauthorizedException('Telegram auth expired')
+
+    const displayName = `${data.first_name} ${data.last_name ?? ''}`.trim()
+    const user = await this.prisma.user.upsert({
+      where: { telegramId: BigInt(data.id) },
+      update: {
+        name: displayName,
+        avatarUrl: data.photo_url ?? null,
+        telegramUsername: data.username ?? null,
+      },
+      create: {
+        telegramId: BigInt(data.id),
+        telegramUsername: data.username ?? null,
+        name: displayName,
+        avatarUrl: data.photo_url ?? null,
+        birthDate: new Date('2000-01-01'),
+      },
+    })
+
+    const token = this.jwt.sign({ sub: user.id, telegramId: data.id })
+    return { token, user: this.safeUser(user) }
+  }
+
   // ─── Telegram Mini App ───────────────────────────────────────────────
   validateTelegramData(initData: string): TelegramInitData {
     const params = new URLSearchParams(initData)

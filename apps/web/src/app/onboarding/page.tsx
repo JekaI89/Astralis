@@ -1,11 +1,17 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/stores/auth-store'
 
+declare global {
+  interface Window {
+    onTelegramAuth?: (user: Record<string, string>) => void
+  }
+}
+
 type Phase = 'splash' | 'onboarding'
-type AuthMethod = 'choose' | 'email_register' | 'email_login' | 'birth_only' | 'tg_bot'
+type AuthMethod = 'choose' | 'email_register' | 'email_login' | 'birth_only'
 
 interface BirthForm {
   name: string
@@ -25,106 +31,58 @@ export default function OnboardingPage() {
   const [emailForm, setEmailForm] = useState({ email: '', password: '' })
   const [authError, setAuthError] = useState('')
   const [authLoading, setAuthLoading] = useState(false)
-  const [tgAuthCode, setTgAuthCode] = useState(() =>
-    typeof window !== 'undefined' ? (sessionStorage.getItem('tg_auth_code') ?? '') : '',
-  )
-
-  const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
-
-  const stopPolling = useCallback(() => {
-    if (pollTimerRef.current) {
-      clearInterval(pollTimerRef.current)
-      pollTimerRef.current = null
-    }
-  }, [])
 
   useEffect(() => {
-    return () => stopPolling()
-  }, [stopPolling])
-
-  // Check pending TG code on mount / visibility change
-  useEffect(() => {
-    const checkPendingCode = async () => {
-      const code = typeof window !== 'undefined' ? sessionStorage.getItem('tg_auth_code') : null
-      if (!code) return
-      try {
-        const result = await store.pollTelegramAuth(code)
-        if (result.status === 'ok') {
-          router.replace('/')
-        } else if (result.status === 'pending') {
-          setTgAuthCode(code)
-          setAuthMethod('tg_bot')
-          setPhase('onboarding')
-          startPolling(code)
-        } else {
-          if (typeof window !== 'undefined') sessionStorage.removeItem('tg_auth_code')
-        }
-      } catch { /* ignore */ }
-    }
-
-    void checkPendingCode()
-
-    const onVisible = () => {
-      if (!document.hidden) void checkPendingCode()
-    }
-    document.addEventListener('visibilitychange', onVisible)
-    return () => document.removeEventListener('visibilitychange', onVisible)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Clean up any leftover bot-flow session storage
+    if (typeof window !== 'undefined') sessionStorage.removeItem('tg_auth_code')
   }, [])
-
-  const startPolling = useCallback((code: string) => {
-    stopPolling()
-    pollTimerRef.current = setInterval(async () => {
-      try {
-        const result = await store.pollTelegramAuth(code)
-        if (result.status === 'ok') {
-          stopPolling()
-          router.replace('/')
-        } else if (result.status === 'expired') {
-          stopPolling()
-          setAuthMethod('choose')
-          setAuthError('Код истёк, попробуйте снова')
-        }
-      } catch { /* ignore */ }
-    }, 2000)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stopPolling])
 
   const onSplashEnd = (e: React.AnimationEvent) => {
     if (e.animationName !== 'splashSeq') return
     setPhase('onboarding')
   }
 
-  const handleLoginTelegram = async () => {
+  const handleTelegramWidget = useCallback(() => {
+    // Mini App path
     const tg = (window as unknown as { Telegram?: { WebApp?: { initData?: string } } }).Telegram?.WebApp
     if (tg?.initData && tg.initData.length > 10) {
       setAuthLoading(true)
       setAuthError('')
-      try {
-        await store.loginWithTelegram(tg.initData)
-        router.replace('/')
-      } catch (e) {
-        setAuthError(e instanceof Error ? e.message : 'Ошибка авторизации')
-      } finally {
-        setAuthLoading(false)
-      }
+      store.loginWithTelegram(tg.initData)
+        .then(() => router.replace('/'))
+        .catch((e: unknown) => setAuthError(e instanceof Error ? e.message : 'Ошибка авторизации'))
+        .finally(() => setAuthLoading(false))
       return
     }
-    // Bot flow
-    setAuthLoading(true)
-    setAuthError('')
-    try {
-      const code = await store.startTelegramBotFlow()
-      setTgAuthCode(code)
-      window.open(`https://t.me/NovaSouI_bot?start=auth_${code}`, '_blank')
-      startPolling(code)
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Ошибка'
-      setAuthError(msg === 'Failed to fetch' ? 'Сервер недоступен. Проверьте NEXT_PUBLIC_API_URL.' : msg)
-    } finally {
-      setAuthLoading(false)
+
+    // Widget path — inject script once
+    if (!document.getElementById('tg-widget-script')) {
+      window.onTelegramAuth = async (user) => {
+        setAuthLoading(true)
+        setAuthError('')
+        try {
+          await store.loginWithTelegramWidget(user)
+          router.replace('/')
+        } catch (e) {
+          setAuthError(e instanceof Error ? e.message : 'Ошибка авторизации')
+        } finally {
+          setAuthLoading(false)
+        }
+      }
+      const s = document.createElement('script')
+      s.id = 'tg-widget-script'
+      s.src = 'https://telegram.org/js/telegram-widget.js?22'
+      s.setAttribute('data-telegram-login', 'NovaSouI_bot')
+      s.setAttribute('data-size', 'large')
+      s.setAttribute('data-onauth', 'onTelegramAuth(user)')
+      s.setAttribute('data-request-access', 'write')
+      s.async = true
+      document.getElementById('tg-widget-container')?.appendChild(s)
+    } else {
+      // re-click the widget button if already injected
+      document.getElementById('tg-widget-container')?.querySelector('iframe')?.click()
     }
-  }
+  }, [store, router])
 
   const handleLoginEmail = async () => {
     if (!emailForm.email || !emailForm.password) return
@@ -322,38 +280,32 @@ export default function OnboardingPage() {
                 >
                   Войдите, чтобы получить персональный прогноз
                 </div>
-                <button
-                  onClick={handleLoginTelegram}
-                  disabled={authLoading}
-                  style={{
-                    width: '100%',
-                    padding: 16,
-                    borderRadius: 16,
-                    border: 'none',
-                    background: 'linear-gradient(90deg,#229ED9,#1a8ac4)',
-                    color: '#fff',
-                    font: '600 15px Inter',
-                    cursor: 'pointer',
-                    marginBottom: 8,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 10,
-                    opacity: authLoading ? 0.6 : 1,
-                  }}
-                >
-                  <span style={{ fontSize: 20 }}>✈️</span>
-                  {authLoading ? 'Открываем бот…' : 'Войти через Telegram'}
-                </button>
-                {tgAuthCode && !authLoading && (
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 12 }}>
-                    <div className="anim-float" style={{ width: 7, height: 7, borderRadius: '50%', background: '#4ade80', boxShadow: '0 0 8px #4ade80' }} />
-                    <span style={{ font: '400 12px Inter', color: 'rgba(255,255,255,.45)' }}>
-                      Нажмите СТАРТ в боте и вернитесь
-                    </span>
-                    <button onClick={() => { stopPolling(); setTgAuthCode('') }} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,.25)', font: '400 12px Inter', cursor: 'pointer' }}>✕</button>
-                  </div>
-                )}
+                <div style={{ marginBottom: 12 }}>
+                  {authLoading ? (
+                    <div style={{
+                      width: '100%', padding: 16, borderRadius: 16,
+                      background: 'linear-gradient(90deg,#229ED9,#1a8ac4)',
+                      color: '#fff', font: '600 15px Inter',
+                      textAlign: 'center', opacity: 0.6,
+                    }}>Авторизация…</div>
+                  ) : (
+                    <div
+                      id="tg-widget-container"
+                      onClick={handleTelegramWidget}
+                      style={{
+                        width: '100%', padding: 16, borderRadius: 16, border: 'none',
+                        background: 'linear-gradient(90deg,#229ED9,#1a8ac4)',
+                        color: '#fff', font: '600 15px Inter',
+                        cursor: 'pointer', display: 'flex',
+                        alignItems: 'center', justifyContent: 'center', gap: 10,
+                        boxSizing: 'border-box', position: 'relative', overflow: 'hidden',
+                      }}
+                    >
+                      <span style={{ fontSize: 20 }}>✈️</span>
+                      Войти через Telegram
+                    </div>
+                  )}
+                </div>
                 {authError && (
                   <div
                     style={{
@@ -452,78 +404,6 @@ export default function OnboardingPage() {
               </div>
             )}
 
-            {/* TG bot waiting */}
-            {authMethod === 'tg_bot' && (
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: 52, marginBottom: 16 }}>✈️</div>
-                <div style={{ font: '700 22px Playfair Display, serif', color: '#fff', marginBottom: 10 }}>
-                  Подтвердите в Telegram
-                </div>
-                <div style={{ font: '400 13px/1.6 Inter', color: 'rgba(255,255,255,.55)', marginBottom: 28 }}>
-                  Нажмите кнопку ниже — откроется бот.<br />
-                  Нажмите <b style={{ color: '#fff' }}>СТАРТ</b> и вернитесь сюда.
-                </div>
-                <a
-                  href={`https://t.me/NovaSouI_bot?start=auth_${tgAuthCode}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  style={{
-                    display: 'block',
-                    width: '100%',
-                    padding: 16,
-                    borderRadius: 16,
-                    background: 'linear-gradient(90deg,#229ED9,#1a8ac4)',
-                    color: '#fff',
-                    font: '600 15px Inter',
-                    textDecoration: 'none',
-                    marginBottom: 20,
-                    boxSizing: 'border-box',
-                  }}
-                >
-                  ✈️ Открыть @NovaSouI_bot
-                </a>
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 10,
-                    marginBottom: 24,
-                  }}
-                >
-                  <div
-                    className="anim-float"
-                    style={{
-                      width: 8,
-                      height: 8,
-                      borderRadius: '50%',
-                      background: '#4ade80',
-                      boxShadow: '0 0 8px #4ade80',
-                    }}
-                  />
-                  <span style={{ font: '500 13px Inter', color: 'rgba(255,255,255,.5)' }}>
-                    Ожидаем подтверждения…
-                  </span>
-                </div>
-                <button
-                  onClick={() => {
-                    stopPolling()
-                    setAuthMethod('choose')
-                    setAuthError('')
-                  }}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: 'rgba(255,255,255,.3)',
-                    font: '400 13px Inter',
-                    cursor: 'pointer',
-                    textDecoration: 'underline',
-                  }}
-                >
-                  Отмена
-                </button>
-              </div>
-            )}
 
             {/* Birth only — 3 steps */}
             {authMethod === 'birth_only' && (

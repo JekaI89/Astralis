@@ -28,6 +28,7 @@ interface AuthState {
     birthTime?: string
     birthPlace?: string
   }) => Promise<void>
+  loginWithTelegramWidget: (data: Record<string, string>) => Promise<void>
   startTelegramBotFlow: () => Promise<string>
   pollTelegramAuth: (code: string) => Promise<{ status: string; token?: string }>
   linkEmail: (email: string, password: string) => Promise<void>
@@ -91,6 +92,22 @@ export const useAuthStore = create<AuthState>()(
         } catch (e) {
           set({ isLoading: false })
           throw e
+        }
+      },
+
+      loginWithTelegramWidget: async (data: Record<string, string>) => {
+        set({ isLoading: true })
+        try {
+          const { token, user } = await apiClient.post<{ token: string; user: User }>(
+            '/auth/telegram-widget',
+            data,
+          )
+          apiClient.setToken(token)
+          set({ token, user, isLoading: false })
+          await get().fetchMe()
+        } catch {
+          set({ isLoading: false })
+          throw new Error('Ошибка авторизации через Telegram')
         }
       },
 
