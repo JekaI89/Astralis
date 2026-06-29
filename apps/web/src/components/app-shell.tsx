@@ -2,10 +2,19 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 
-type Phase = 'splash' | 'app'
+type Phase = 'splash' | 'onboarding' | 'app'
 type Tab = 'home' | 'natal' | 'synastry'
 type DayTab = 'today' | 'tomorrow' | 'week' | 'month'
 type SynStage = 'input' | 'calculating' | 'result'
+
+const STORAGE_KEY = 'astralis_birth_data'
+
+interface BirthData {
+  name: string
+  date: string
+  time: string
+  city: string
+}
 
 interface PlanetData {
   id: string
@@ -46,6 +55,9 @@ export function AppShell() {
   const [tab, setTab] = useState<Tab>('home')
   const [dayTab, setDayTab] = useState<DayTab>('today')
   const [selectedPlanet, setSelectedPlanet] = useState<(PlanetData & { x: number; y: number; fill: string; halo: number; strokeW: number; fontSize: number }) | null>(null)
+  const [birthData, setBirthData] = useState<BirthData | null>(null)
+  const [form, setForm] = useState<BirthData>({ name: '', date: '', time: '', city: '' })
+  const [onboardStep, setOnboardStep] = useState(0)
   const [synStage, setSynStage] = useState<SynStage>('input')
   const [partnerAdded, setPartnerAdded] = useState(false)
   const [score, setScore] = useState(0)
@@ -61,9 +73,25 @@ export function AppShell() {
     }
   }, [])
 
-  const onSplashEnd = useCallback((e: React.AnimationEvent) => {
-    if (e.animationName === 'splashSeq') setPhase('app')
+  useEffect(() => {
+    const saved = localStorage.getItem(STORAGE_KEY)
+    if (saved) {
+      try { setBirthData(JSON.parse(saved) as BirthData) } catch { /* ignore */ }
+    }
   }, [])
+
+  const onSplashEnd = useCallback((e: React.AnimationEvent) => {
+    if (e.animationName !== 'splashSeq') return
+    const saved = localStorage.getItem(STORAGE_KEY)
+    setPhase(saved ? 'app' : 'onboarding')
+  }, [])
+
+  const submitBirth = () => {
+    if (!form.name || !form.date) return
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(form))
+    setBirthData(form)
+    setPhase('app')
+  }
 
   const goTab = (t: Tab) => { setTab(t); setSelectedPlanet(null) }
 
@@ -158,6 +186,110 @@ export function AppShell() {
         </div>
       )}
 
+      {/* ONBOARDING */}
+      {phase === 'onboarding' && (
+        <div className="anim-fadeup" style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 24px' }}>
+          <div style={{ width: '100%', maxWidth: 400 }}>
+
+            {/* Шаг 0 — Имя */}
+            {onboardStep === 0 && (
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 52, marginBottom: 12 }}>✨</div>
+                <div style={{ font: '700 28px Playfair Display, serif', color: '#fff', marginBottom: 8 }}>Добро пожаловать</div>
+                <div style={{ font: '400 14px Inter', color: 'rgba(255,255,255,.5)', marginBottom: 32 }}>Как вас зовут?</div>
+                <input
+                  type="text"
+                  placeholder="Ваше имя"
+                  value={form.name}
+                  onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                  style={{ width: '100%', padding: '16px 20px', borderRadius: 16, border: '1px solid rgba(226,183,85,.35)', background: 'rgba(255,255,255,.06)', color: '#fff', font: '500 16px Inter', outline: 'none', marginBottom: 20, boxSizing: 'border-box' }}
+                />
+                <button
+                  onClick={() => form.name.trim() && setOnboardStep(1)}
+                  style={{ width: '100%', padding: 16, borderRadius: 16, border: 'none', background: form.name.trim() ? 'linear-gradient(90deg,#8B5CF6,#E2B755)' : 'rgba(255,255,255,.1)', color: '#fff', font: '600 15px Inter', cursor: form.name.trim() ? 'pointer' : 'default', transition: 'all .2s' }}
+                >
+                  Продолжить →
+                </button>
+              </div>
+            )}
+
+            {/* Шаг 1 — Дата и время рождения */}
+            {onboardStep === 1 && (
+              <div>
+                <button onClick={() => setOnboardStep(0)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,.4)', font: '500 13px Inter', cursor: 'pointer', marginBottom: 16, padding: 0 }}>← Назад</button>
+                <div style={{ font: '700 24px Playfair Display, serif', color: '#fff', marginBottom: 6 }}>Дата рождения</div>
+                <div style={{ font: '400 13px Inter', color: 'rgba(255,255,255,.45)', marginBottom: 24 }}>Нужна для расчёта натальной карты</div>
+
+                <div style={{ marginBottom: 16 }}>
+                  <div style={{ font: '500 12px Inter', color: '#E2B755', letterSpacing: 1, marginBottom: 8, textTransform: 'uppercase' }}>Дата</div>
+                  <input
+                    type="date"
+                    value={form.date}
+                    onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
+                    style={{ width: '100%', padding: '14px 16px', borderRadius: 14, border: '1px solid rgba(226,183,85,.35)', background: 'rgba(255,255,255,.06)', color: '#fff', font: '500 15px Inter', outline: 'none', boxSizing: 'border-box', colorScheme: 'dark' }}
+                  />
+                </div>
+
+                <div style={{ marginBottom: 28 }}>
+                  <div style={{ font: '500 12px Inter', color: '#E2B755', letterSpacing: 1, marginBottom: 8, textTransform: 'uppercase' }}>Время рождения <span style={{ color: 'rgba(255,255,255,.3)', fontSize: 11 }}>(если знаете)</span></div>
+                  <input
+                    type="time"
+                    value={form.time}
+                    onChange={(e) => setForm((f) => ({ ...f, time: e.target.value }))}
+                    style={{ width: '100%', padding: '14px 16px', borderRadius: 14, border: '1px solid rgba(255,255,255,.15)', background: 'rgba(255,255,255,.06)', color: '#fff', font: '500 15px Inter', outline: 'none', boxSizing: 'border-box', colorScheme: 'dark' }}
+                  />
+                </div>
+
+                <button
+                  onClick={() => form.date && setOnboardStep(2)}
+                  style={{ width: '100%', padding: 16, borderRadius: 16, border: 'none', background: form.date ? 'linear-gradient(90deg,#8B5CF6,#E2B755)' : 'rgba(255,255,255,.1)', color: '#fff', font: '600 15px Inter', cursor: form.date ? 'pointer' : 'default', transition: 'all .2s' }}
+                >
+                  Продолжить →
+                </button>
+              </div>
+            )}
+
+            {/* Шаг 2 — Город */}
+            {onboardStep === 2 && (
+              <div>
+                <button onClick={() => setOnboardStep(1)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,.4)', font: '500 13px Inter', cursor: 'pointer', marginBottom: 16, padding: 0 }}>← Назад</button>
+                <div style={{ font: '700 24px Playfair Display, serif', color: '#fff', marginBottom: 6 }}>Место рождения</div>
+                <div style={{ font: '400 13px Inter', color: 'rgba(255,255,255,.45)', marginBottom: 24 }}>Для точного расчёта асцендента и домов</div>
+
+                <input
+                  type="text"
+                  placeholder="Город (например, Москва)"
+                  value={form.city}
+                  onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))}
+                  style={{ width: '100%', padding: '16px 20px', borderRadius: 16, border: '1px solid rgba(226,183,85,.35)', background: 'rgba(255,255,255,.06)', color: '#fff', font: '500 16px Inter', outline: 'none', marginBottom: 12, boxSizing: 'border-box' }}
+                />
+                <div style={{ font: '400 12px Inter', color: 'rgba(255,255,255,.3)', marginBottom: 28, textAlign: 'center' }}>Не знаете точного города? Нажмите «Пропустить»</div>
+
+                <button
+                  onClick={submitBirth}
+                  style={{ width: '100%', padding: 16, borderRadius: 16, border: 'none', background: 'linear-gradient(90deg,#8B5CF6,#E2B755)', color: '#fff', font: '600 15px Inter', cursor: 'pointer', marginBottom: 10 }}
+                >
+                  Составить карту 🔮
+                </button>
+                <button
+                  onClick={() => { setForm((f) => ({ ...f, city: '' })); submitBirth() }}
+                  style={{ width: '100%', padding: 14, borderRadius: 16, border: '1px solid rgba(255,255,255,.12)', background: 'transparent', color: 'rgba(255,255,255,.45)', font: '500 14px Inter', cursor: 'pointer' }}
+                >
+                  Пропустить
+                </button>
+              </div>
+            )}
+
+            {/* Прогресс-точки */}
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 32 }}>
+              {[0,1,2].map((i) => (
+                <div key={i} style={{ width: i === onboardStep ? 20 : 6, height: 6, borderRadius: 3, background: i === onboardStep ? '#E2B755' : 'rgba(255,255,255,.2)', transition: 'all .3s' }}/>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* APP */}
       {phase === 'app' && (
         <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column' }}>
@@ -177,7 +309,7 @@ export function AppShell() {
                   </svg>
                   <div>
                     <div style={{ font: '500 11px Inter', letterSpacing: 2, color: 'rgba(255,255,255,.5)', textTransform: 'uppercase' }}>Сегодня · Растущая луна</div>
-                    <div style={{ font: '600 19px Playfair Display, serif', color: '#fff', marginTop: 3 }}>Луна в знаке {f.moonSign}</div>
+                    <div style={{ font: '600 19px Playfair Display, serif', color: '#fff', marginTop: 3 }}>{birthData ? `Привет, ${birthData.name} 👋` : `Луна в знаке ${f.moonSign}`}</div>
                   </div>
                 </div>
 
