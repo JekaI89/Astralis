@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 
 type Phase = 'splash' | 'onboarding' | 'app'
-type Tab = 'home' | 'natal' | 'synastry'
+type Tab = 'home' | 'natal' | 'synastry' | 'profile'
 type DayTab = 'today' | 'tomorrow' | 'week' | 'month'
 type SynStage = 'input' | 'calculating' | 'result'
 
@@ -90,8 +90,10 @@ export function AppShell() {
 
   const onSplashEnd = useCallback((e: React.AnimationEvent) => {
     if (e.animationName !== 'splashSeq') return
+    const token = localStorage.getItem(TOKEN_KEY)
     const saved = localStorage.getItem(STORAGE_KEY)
-    setPhase(saved ? 'app' : 'onboarding')
+    // Нужен либо JWT токен (полная авторизация) либо данные (офлайн-режим)
+    setPhase(token || saved ? 'app' : 'onboarding')
   }, [])
 
   const submitBirth = async () => {
@@ -680,6 +682,63 @@ export function AppShell() {
             )}
           </div>
 
+            {/* PROFILE */}
+            {tab === 'profile' && (
+              <div className="anim-fadeup" style={{ paddingBottom: 20 }}>
+                {/* Аватар и имя */}
+                <div style={{ textAlign: 'center', marginBottom: 28 }}>
+                  <div style={{ width: 80, height: 80, borderRadius: '50%', background: 'linear-gradient(135deg,#8B5CF6,#E2B755)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32, margin: '0 auto 14px' }}>
+                    {birthData?.name?.[0]?.toUpperCase() ?? '✨'}
+                  </div>
+                  <div style={{ font: '700 22px Playfair Display, serif', color: '#fff' }}>{birthData?.name ?? 'Гость'}</div>
+                  <div style={{ font: '500 13px Inter', color: localStorage.getItem(TOKEN_KEY) ? '#4ade80' : 'rgba(255,255,255,.4)', marginTop: 4 }}>
+                    {localStorage.getItem(TOKEN_KEY) ? '✓ Авторизован' : 'Офлайн-режим'}
+                  </div>
+                </div>
+
+                {/* Данные рождения */}
+                <div style={{ background: 'rgba(255,255,255,.05)', borderRadius: 18, padding: '18px 20px', marginBottom: 14, border: '1px solid rgba(255,255,255,.08)' }}>
+                  <div style={{ font: '500 11px Inter', letterSpacing: 2, color: '#E2B755', textTransform: 'uppercase', marginBottom: 14 }}>Данные рождения</div>
+                  {[
+                    { label: 'Дата', value: birthData?.date ? new Date(birthData.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' }) : '—' },
+                    { label: 'Время', value: birthData?.time || 'Не указано' },
+                    { label: 'Город', value: birthData?.city || 'Не указан' },
+                  ].map(({ label, value }) => (
+                    <div key={label} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
+                      <span style={{ font: '400 13px Inter', color: 'rgba(255,255,255,.45)' }}>{label}</span>
+                      <span style={{ font: '500 13px Inter', color: '#fff' }}>{value}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Премиум */}
+                <div style={{ background: 'linear-gradient(135deg,rgba(139,92,246,.15),rgba(226,183,85,.1))', borderRadius: 18, padding: '18px 20px', marginBottom: 14, border: '1px solid rgba(226,183,85,.2)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <div style={{ font: '600 15px Inter', color: '#fff' }}>✨ Premium</div>
+                      <div style={{ font: '400 12px Inter', color: 'rgba(255,255,255,.45)', marginTop: 3 }}>Полный доступ ко всем функциям</div>
+                    </div>
+                    <div style={{ padding: '8px 16px', borderRadius: 12, background: 'rgba(255,255,255,.08)', font: '600 12px Inter', color: 'rgba(255,255,255,.4)' }}>Free</div>
+                  </div>
+                </div>
+
+                {/* Войти / Выйти */}
+                {!localStorage.getItem(TOKEN_KEY) ? (
+                  <button onClick={() => { setPhase('onboarding'); setAuthMethod('choose'); setOnboardStep(0) }}
+                    style={{ width: '100%', padding: 15, borderRadius: 16, border: 'none', background: 'linear-gradient(90deg,#8B5CF6,#E2B755)', color: '#fff', font: '600 14px Inter', cursor: 'pointer', marginBottom: 10 }}>
+                    Войти / Зарегистрироваться
+                  </button>
+                ) : (
+                  <button onClick={() => { localStorage.removeItem(TOKEN_KEY); localStorage.removeItem(STORAGE_KEY); setBirthData(null); setPhase('onboarding'); setAuthMethod('choose'); setOnboardStep(0) }}
+                    style={{ width: '100%', padding: 15, borderRadius: 16, border: '1px solid rgba(255,255,255,.12)', background: 'transparent', color: 'rgba(255,255,255,.5)', font: '500 14px Inter', cursor: 'pointer' }}>
+                    Выйти из аккаунта
+                  </button>
+                )}
+              </div>
+            )}
+
+          </div>
+
           {/* TAB BAR */}
           <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '10px 22px 26px', background: 'linear-gradient(180deg,rgba(10,9,21,0),rgba(10,9,21,.85) 40%)', backdropFilter: 'blur(14px)', borderTop: '1px solid rgba(255,255,255,.07)', display: 'flex', justifyContent: 'space-around', zIndex: 40 }}>
             <button onClick={() => goTab('home')} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, padding: '4px 12px' }}>
@@ -704,7 +763,14 @@ export function AppShell() {
                 <circle cx="9" cy="12" r="6" stroke={tabColor('synastry')} strokeWidth="1.4"/>
                 <circle cx="15" cy="12" r="6" stroke={tabColor('synastry')} strokeWidth="1.4"/>
               </svg>
-              <span style={{ font: '600 10px Inter', color: tabColor('synastry') }}>Совместимость</span>
+              <span style={{ font: '600 10px Inter', color: tabColor('synastry') }}>Союз</span>
+            </button>
+            <button onClick={() => goTab('profile')} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, padding: '4px 12px' }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="8" r="3.5" stroke={tabColor('profile')} strokeWidth="1.4"/>
+                <path d="M5 19c0-3.314 3.134-6 7-6s7 2.686 7 6" stroke={tabColor('profile')} strokeWidth="1.4" strokeLinecap="round"/>
+              </svg>
+              <span style={{ font: '600 10px Inter', color: tabColor('profile') }}>Профиль</span>
             </button>
           </div>
 
