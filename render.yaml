@@ -17,7 +17,7 @@ services:
     runtime: node
     region: frankfurt
     plan: free
-    buildCommand: pnpm install && pnpm --filter @astralis/types build && pnpm --filter @astralis/core build && pnpm --filter @astralis/api build && pnpm --filter @astralis/api exec prisma generate
+    buildCommand: pnpm install && pnpm --filter @astralis/types build && pnpm --filter @astralis/core build && pnpm --filter @astralis/api exec prisma generate && pnpm --filter @astralis/api build && pnpm --filter @astralis/api exec prisma migrate deploy
     startCommand: pnpm --filter @astralis/api start
     envVars:
       - key: NODE_VERSION
