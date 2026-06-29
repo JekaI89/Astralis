@@ -83,6 +83,9 @@ importers:
       reflect-metadata:
         specifier: ^0.2.0
         version: 0.2.2
+      telegraf:
+        specifier: ^4.16.0
+        version: 4.16.3
       web-push:
         specifier: ^3.6.0
         version: 3.6.7

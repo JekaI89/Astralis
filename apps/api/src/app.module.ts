@@ -12,6 +12,7 @@ import { MoodModule } from './modules/mood/mood.module'
 import { AiModule } from './modules/ai/ai.module'
 import { NotificationsModule } from './modules/notifications/notifications.module'
 import { TarotModule } from './modules/tarot/tarot.module'
+import { TelegramModule } from './modules/telegram/telegram.module'
 import { PrismaModule } from './prisma/prisma.module'
 
 @Module({
@@ -30,6 +31,7 @@ import { PrismaModule } from './prisma/prisma.module'
     AiModule,
     NotificationsModule,
     TarotModule,
+    TelegramModule,
   ],
 })
 export class AppModule {}
