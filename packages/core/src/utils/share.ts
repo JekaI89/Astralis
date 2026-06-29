@@ -18,9 +18,11 @@ export function buildReferralUrl(baseUrl: string, referralCode: string): string 
 }
 
 export async function shareNative(payload: SharePayload): Promise<boolean> {
-  if (typeof navigator !== 'undefined' && 'share' in navigator) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const nav = typeof globalThis !== 'undefined' ? (globalThis as any).navigator : undefined
+  if (nav && 'share' in nav) {
     try {
-      await navigator.share({ title: payload.title, text: payload.text, url: payload.url })
+      await nav.share({ title: payload.title, text: payload.text, url: payload.url })
       return true
     } catch {
       return false

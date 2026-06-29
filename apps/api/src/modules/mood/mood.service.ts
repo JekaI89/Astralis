@@ -63,7 +63,7 @@ export class MoodService {
       orderBy: { date: 'asc' },
     })
 
-    return entries.map((e) => ({
+    return entries.map((e: (typeof entries)[0]) => ({
       id: e.id,
       userId: e.userId,
       date: e.date.toISOString().split('T')[0]!,
