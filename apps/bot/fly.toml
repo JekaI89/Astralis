@@ -1,0 +1,12 @@
+app = "astralis-bot"
+primary_region = "fra"
+
+[build]
+
+[env]
+  NODE_ENV = "production"
+
+[[vm]]
+  memory = "256mb"
+  cpu_kind = "shared"
+  cpus = 1
