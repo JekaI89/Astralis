@@ -18,7 +18,7 @@ interface BirthData {
   city: string
 }
 
-type AuthMethod = 'choose' | 'email_register' | 'email_login'
+type AuthMethod = 'choose' | 'email_register' | 'email_login' | 'birth_only'
 
 interface PlanetData {
   id: string
@@ -106,8 +106,8 @@ export function AppShell() {
   const loginWithTelegram = async () => {
     const tg = (window as unknown as { Telegram?: { WebApp?: { initData?: string } } }).Telegram?.WebApp
     if (!tg?.initData || !API_URL) {
-      // Не в Telegram — переходим к email
-      setAuthMethod('email_register')
+      setAuthMethod('birth_only')
+      setOnboardStep(0)
       return
     }
     setAuthLoading(true)
@@ -304,9 +304,15 @@ export function AppShell() {
                 </button>
                 <button
                   onClick={() => setAuthMethod('email_login')}
-                  style={{ width: '100%', padding: 14, borderRadius: 16, border: '1px solid rgba(255,255,255,.1)', background: 'transparent', color: 'rgba(255,255,255,.45)', font: '500 14px Inter', cursor: 'pointer' }}
+                  style={{ width: '100%', padding: 14, borderRadius: 16, border: '1px solid rgba(255,255,255,.1)', background: 'transparent', color: 'rgba(255,255,255,.45)', font: '500 14px Inter', cursor: 'pointer', marginBottom: 16 }}
                 >
                   Уже есть аккаунт → Войти
+                </button>
+                <button
+                  onClick={() => { setAuthMethod('birth_only'); setOnboardStep(0) }}
+                  style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,.3)', font: '400 13px Inter', cursor: 'pointer', width: '100%', textDecoration: 'underline' }}
+                >
+                  Продолжить без аккаунта
                 </button>
               </div>
             )}
@@ -330,6 +336,68 @@ export function AppShell() {
                 >
                   {authLoading ? 'Входим…' : 'Войти →'}
                 </button>
+              </div>
+            )}
+
+            {/* Без аккаунта — только данные рождения */}
+            {authMethod === 'birth_only' && (
+              <div>
+                {onboardStep === 0 && (
+                  <div>
+                    <button onClick={() => { setAuthMethod('choose'); setOnboardStep(0) }} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,.4)', font: '500 13px Inter', cursor: 'pointer', marginBottom: 20, padding: 0 }}>← Назад</button>
+                    <div style={{ font: '700 24px Playfair Display, serif', color: '#fff', marginBottom: 6 }}>Как вас зовут?</div>
+                    <div style={{ font: '400 13px Inter', color: 'rgba(255,255,255,.45)', marginBottom: 24 }}>Шаг 1 из 3</div>
+                    <input type="text" placeholder="Ваше имя" value={form.name}
+                      onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                      style={{ width: '100%', padding: '16px 20px', borderRadius: 16, border: '1px solid rgba(226,183,85,.35)', background: 'rgba(255,255,255,.06)', color: '#fff', font: '500 16px Inter', outline: 'none', marginBottom: 20, boxSizing: 'border-box' }}
+                    />
+                    <button onClick={() => form.name.trim() && setOnboardStep(1)}
+                      style={{ width: '100%', padding: 16, borderRadius: 16, border: 'none', background: form.name.trim() ? 'linear-gradient(90deg,#8B5CF6,#E2B755)' : 'rgba(255,255,255,.1)', color: '#fff', font: '600 15px Inter', cursor: form.name.trim() ? 'pointer' : 'default' }}
+                    >Продолжить →</button>
+                  </div>
+                )}
+                {onboardStep === 1 && (
+                  <div>
+                    <button onClick={() => setOnboardStep(0)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,.4)', font: '500 13px Inter', cursor: 'pointer', marginBottom: 20, padding: 0 }}>← Назад</button>
+                    <div style={{ font: '700 24px Playfair Display, serif', color: '#fff', marginBottom: 6 }}>Дата рождения</div>
+                    <div style={{ font: '400 13px Inter', color: 'rgba(255,255,255,.45)', marginBottom: 24 }}>Шаг 2 из 3</div>
+                    <div style={{ font: '500 12px Inter', color: '#E2B755', letterSpacing: 1, marginBottom: 8, textTransform: 'uppercase' }}>Дата</div>
+                    <input type="date" value={form.date}
+                      onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
+                      style={{ width: '100%', padding: '14px 16px', borderRadius: 14, border: '1px solid rgba(226,183,85,.35)', background: 'rgba(255,255,255,.06)', color: '#fff', font: '500 15px Inter', outline: 'none', marginBottom: 16, boxSizing: 'border-box', colorScheme: 'dark' }}
+                    />
+                    <div style={{ font: '500 12px Inter', color: '#E2B755', letterSpacing: 1, marginBottom: 8, textTransform: 'uppercase' }}>Время <span style={{ color: 'rgba(255,255,255,.3)', fontSize: 11 }}>(если знаете)</span></div>
+                    <input type="time" value={form.time}
+                      onChange={(e) => setForm((f) => ({ ...f, time: e.target.value }))}
+                      style={{ width: '100%', padding: '14px 16px', borderRadius: 14, border: '1px solid rgba(255,255,255,.15)', background: 'rgba(255,255,255,.06)', color: '#fff', font: '500 15px Inter', outline: 'none', marginBottom: 24, boxSizing: 'border-box', colorScheme: 'dark' }}
+                    />
+                    <button onClick={() => form.date && setOnboardStep(2)}
+                      style={{ width: '100%', padding: 16, borderRadius: 16, border: 'none', background: form.date ? 'linear-gradient(90deg,#8B5CF6,#E2B755)' : 'rgba(255,255,255,.1)', color: '#fff', font: '600 15px Inter', cursor: form.date ? 'pointer' : 'default' }}
+                    >Продолжить →</button>
+                  </div>
+                )}
+                {onboardStep === 2 && (
+                  <div>
+                    <button onClick={() => setOnboardStep(1)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,.4)', font: '500 13px Inter', cursor: 'pointer', marginBottom: 20, padding: 0 }}>← Назад</button>
+                    <div style={{ font: '700 24px Playfair Display, serif', color: '#fff', marginBottom: 6 }}>Место рождения</div>
+                    <div style={{ font: '400 13px Inter', color: 'rgba(255,255,255,.45)', marginBottom: 24 }}>Шаг 3 из 3</div>
+                    <input type="text" placeholder="Город (например, Москва)" value={form.city}
+                      onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))}
+                      style={{ width: '100%', padding: '16px 20px', borderRadius: 16, border: '1px solid rgba(226,183,85,.35)', background: 'rgba(255,255,255,.06)', color: '#fff', font: '500 16px Inter', outline: 'none', marginBottom: 24, boxSizing: 'border-box' }}
+                    />
+                    <button onClick={submitBirth}
+                      style={{ width: '100%', padding: 16, borderRadius: 16, border: 'none', background: 'linear-gradient(90deg,#8B5CF6,#E2B755)', color: '#fff', font: '600 15px Inter', cursor: 'pointer', marginBottom: 10 }}
+                    >Составить карту 🔮</button>
+                    <button onClick={() => { setForm((f) => ({ ...f, city: '' })); submitBirth().catch(() => {}) }}
+                      style={{ width: '100%', padding: 14, borderRadius: 16, border: '1px solid rgba(255,255,255,.12)', background: 'transparent', color: 'rgba(255,255,255,.45)', font: '500 14px Inter', cursor: 'pointer' }}
+                    >Пропустить город</button>
+                  </div>
+                )}
+                <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 28 }}>
+                  {[0,1,2].map((i) => (
+                    <div key={i} style={{ width: i === onboardStep ? 20 : 6, height: 6, borderRadius: 3, background: i === onboardStep ? '#E2B755' : i < onboardStep ? 'rgba(226,183,85,.4)' : 'rgba(255,255,255,.2)', transition: 'all .3s' }}/>
+                  ))}
+                </div>
               </div>
             )}
 
