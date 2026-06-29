@@ -1,7 +1,7 @@
-import { Body, Controller, Post, Get, Param, HttpCode, Request, UseGuards, BadRequestException } from '@nestjs/common'
+import { Body, Controller, Post, Get, Param, HttpCode, Request, UseGuards } from '@nestjs/common'
 import { AuthGuard } from '@nestjs/passport'
 import { ApiOperation, ApiTags } from '@nestjs/swagger'
-import { IsEmail, IsString, MinLength, IsOptional, IsDateString } from 'class-validator'
+import { IsEmail, IsString, IsNumber, MinLength, IsOptional, IsDateString } from 'class-validator'
 import { AuthService } from './auth.service'
 
 class TelegramAuthDto {
@@ -12,12 +12,12 @@ class TelegramAuthDto {
 }
 
 class TelegramWidgetDto {
-  @IsString() id!: string
+  @IsNumber() id!: number
   @IsString() first_name!: string
   @IsOptional() @IsString() last_name?: string
   @IsOptional() @IsString() username?: string
   @IsOptional() @IsString() photo_url?: string
-  @IsString() auth_date!: string
+  @IsNumber() auth_date!: number
   @IsString() hash!: string
 }
 
@@ -54,15 +54,13 @@ export class AuthController {
   @HttpCode(200)
   @ApiOperation({ summary: 'Авторизация через Telegram Login Widget' })
   loginTelegramWidget(@Body() dto: TelegramWidgetDto) {
-    const id = parseInt(dto.id, 10)
-    if (isNaN(id)) throw new BadRequestException('Invalid id')
     return this.auth.loginWithTelegramWidget({
-      id,
+      id: dto.id,
       first_name: dto.first_name,
       last_name: dto.last_name,
       username: dto.username,
       photo_url: dto.photo_url,
-      auth_date: parseInt(dto.auth_date, 10),
+      auth_date: dto.auth_date,
       hash: dto.hash,
     })
   }
