@@ -122,7 +122,7 @@ export class TelegramService implements OnModuleInit {
   private async handleHoroscope(ctx: Context) {
     const today = new Date().toISOString().split('T')[0]!
     try {
-      const res = await fetch(`${this.apiUrl}/horoscope/daily?date=${today}`)
+      const res = await fetch(`http://localhost:${process.env.PORT ?? 4000}/horoscope/daily?date=${today}`)
       if (!res.ok) throw new Error('API error')
       const h = await res.json() as { headline: string; affirmation: string; energy: number }
       await ctx.reply(
