@@ -27,30 +27,34 @@ export function ContactsList() {
 
   if (!data?.length) {
     return (
-      <p className="text-center text-[var(--color-text-muted)] text-sm py-12">
-        Добавьте первый контакт, чтобы проверить совместимость
+      <p className="text-center text-sm py-12" style={{ color: 'rgba(255,255,255,.6)' }}>
+        Добавьте первый контакт, чтобы рассчитать астрологическую совместимость
       </p>
     )
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2.5">
       {data.map((contact) => (
         <Link
           key={contact.id}
           href={`/compatibility/${contact.id}`}
-          className="flex items-center gap-3 p-4 rounded-xl bg-[var(--color-surface)] hover:bg-[var(--color-surface-2)] transition-colors"
+          className="flex items-center gap-3.5 p-4 rounded-[18px] transition-all"
+          style={{ background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.1)', backdropFilter: 'blur(14px)' }}
         >
-          <div className="w-10 h-10 rounded-full bg-[var(--color-primary)] flex items-center justify-center text-lg font-bold">
-            {contact.name[0]}
+          <div
+            className="w-[44px] h-[44px] rounded-full flex items-center justify-center text-[18px] font-bold text-white flex-shrink-0"
+            style={{ background: 'linear-gradient(150deg,#8B5CF6,#3a2a66)', border: '1.5px solid rgba(226,183,85,.4)', boxShadow: '0 0 14px rgba(139,92,246,.35)', fontFamily: 'var(--font-serif)' }}
+          >
+            {contact.name.charAt(0)}
           </div>
           <div className="flex-1">
-            <p className="font-medium">{contact.name}</p>
-            <p className="text-xs text-[var(--color-text-muted)]">
+            <p className="font-medium text-[15px] text-white">{contact.name}</p>
+            <p className="text-[12px]" style={{ color: 'rgba(255,255,255,.5)' }}>
               {RELATION_LABELS[contact.relation] ?? contact.relation}
             </p>
           </div>
-          <span className="text-[var(--color-text-muted)]">›</span>
+          <span className="text-[18px]" style={{ color: '#E2B755' }}>›</span>
         </Link>
       ))}
     </div>
