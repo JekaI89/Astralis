@@ -139,6 +139,7 @@ export class AuthService {
     const { hash, ...fields } = data
     const dataCheckString = Object.keys(fields)
       .sort()
+      .filter((k) => fields[k as keyof typeof fields] !== undefined)
       .map((k) => `${k}=${fields[k as keyof typeof fields]}`)
       .join('\n')
 
