@@ -79,6 +79,8 @@ export default function OnboardingPage() {
     s.src = 'https://telegram.org/js/telegram-widget.js?22'
     s.setAttribute('data-telegram-login', 'NovaSouI_bot')
     s.setAttribute('data-size', 'large')
+    s.setAttribute('data-userpic', 'true')
+    s.setAttribute('data-radius', '8')
     s.setAttribute('data-onauth', 'onTelegramAuth(user)')
     s.setAttribute('data-request-access', 'write')
     s.async = true
@@ -257,13 +259,9 @@ export default function OnboardingPage() {
         </div>
       )}
 
-      {/* Stretch Telegram widget iframe to fill container */}
       <style>{`
-        #tg-widget-container iframe {
-          width: 100% !important;
-          height: 100% !important;
-          transform: none !important;
-        }
+        #tg-widget-container { display: flex; justify-content: center; }
+        #tg-widget-container iframe { border-radius: 12px !important; }
       `}</style>
 
       {/* ONBOARDING */}
@@ -295,39 +293,17 @@ export default function OnboardingPage() {
                 >
                   Войдите, чтобы получить персональный прогноз
                 </div>
-                <div style={{ marginBottom: 12 }}>
+                <div style={{ marginBottom: 12, minHeight: 54 }}>
                   {authLoading ? (
                     <div style={{
-                      width: '100%', padding: 16, borderRadius: 16,
-                      background: 'rgba(34,158,217,.4)',
-                      color: '#fff', font: '600 15px Inter',
+                      padding: 16, borderRadius: 16,
+                      background: 'rgba(34,158,217,.25)',
+                      color: 'rgba(255,255,255,.7)', font: '500 14px Inter',
                       textAlign: 'center',
                     }}>Авторизация…</div>
                   ) : (
-                    <div style={{ position: 'relative', height: 54 }}>
-                      {/* Decorative button underneath */}
-                      <div style={{
-                        position: 'absolute', inset: 0,
-                        borderRadius: 16,
-                        background: 'linear-gradient(90deg,#229ED9,#1a8ac4)',
-                        color: '#fff', font: '600 15px Inter',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-                        pointerEvents: 'none',
-                      }}>
-                        <span style={{ fontSize: 20 }}>✈️</span>
-                        Войти через Telegram
-                      </div>
-                      {/* Telegram widget rendered here — opacity:0 so it's invisible but clickable */}
-                      <div
-                        id="tg-widget-container"
-                        style={{
-                          position: 'absolute', inset: 0,
-                          overflow: 'hidden', borderRadius: 16,
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          opacity: 0.01, cursor: 'pointer',
-                        }}
-                      />
-                    </div>
+                    /* Telegram renders its own native button here */
+                    <div id="tg-widget-container" />
                   )}
                 </div>
                 {authError && (
