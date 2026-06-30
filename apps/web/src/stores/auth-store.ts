@@ -143,25 +143,17 @@ export const useAuthStore = create<AuthState>()(
 
       fetchMe: async () => {
         try {
-          const u = await apiClient.get<{
-            name?: string
-            birthDate?: string
-            birthTime?: string
-            birthPlace?: string
-            email?: string | null
-            telegramUsername?: string | null
-            hasTelegram?: boolean
-          }>('/auth/me')
-          if (u.name) {
+          const u = await apiClient.get<User>('/users/me')
+          if (u) {
+            set({ user: u })
             const bd: BirthData = {
-              name: u.name,
+              name: u.name ?? '',
               date: u.birthDate?.split('T')[0] ?? '',
               time: u.birthTime ?? '',
               city: u.birthPlace ?? '',
             }
             set({ birthData: bd })
           }
-          // telegramUsername / hasTelegram not in User type — stored separately if needed
         } catch {
           // ignore fetch me errors
         }

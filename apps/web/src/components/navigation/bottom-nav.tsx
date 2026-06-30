@@ -10,6 +10,7 @@ const NAV_ITEMS = [
   { href: '/compatibility', label: 'Союзы',        icon: '♥' },
   { href: '/tarot',         label: 'Таро',         icon: '🃏' },
   { href: '/ai',            label: 'Астролог',     icon: '✦' },
+  { href: '/profile',       label: 'Профиль',      icon: '👤' },
 ]
 
 export function BottomNav() {
