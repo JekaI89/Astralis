@@ -36,6 +36,24 @@ export default function OnboardingPage() {
     if (typeof window !== 'undefined') sessionStorage.removeItem('tg_auth_code')
   }, [])
 
+  // Auto-login if opened as Telegram Mini App
+  useEffect(() => {
+    const tg = (window as unknown as { Telegram?: { WebApp?: { initData?: string; ready?: () => void } } }).Telegram?.WebApp
+    if (tg?.initData && tg.initData.length > 10) {
+      tg.ready?.()
+      setAuthLoading(true)
+      setAuthError('')
+      store.loginWithTelegram(tg.initData)
+        .then(() => router.replace('/'))
+        .catch((e: unknown) => {
+          console.error('TG miniapp auto-auth error:', e)
+          setAuthError(e instanceof Error ? e.message : 'Ошибка авторизации')
+          setAuthLoading(false)
+        })
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   // Keep window.onTelegramAuth always up-to-date so stale closures can't break auth
   useEffect(() => {
     window.onTelegramAuth = async (user) => {
@@ -58,21 +76,6 @@ export default function OnboardingPage() {
   }
 
   const handleTelegramWidget = useCallback(() => {
-    // Mini App path
-    const tg = (window as unknown as { Telegram?: { WebApp?: { initData?: string } } }).Telegram?.WebApp
-    if (tg?.initData && tg.initData.length > 10) {
-      setAuthLoading(true)
-      setAuthError('')
-      store.loginWithTelegram(tg.initData)
-        .then(() => router.replace('/'))
-        .catch((e: unknown) => {
-          console.error('TG miniapp auth error:', e)
-          setAuthError(e instanceof Error ? e.message : 'Ошибка авторизации')
-          setAuthLoading(false)
-        })
-      return
-    }
-
     // Widget path — inject script once, then let the iframe handle clicks
     if (!document.getElementById('tg-widget-script')) {
       const s = document.createElement('script')
