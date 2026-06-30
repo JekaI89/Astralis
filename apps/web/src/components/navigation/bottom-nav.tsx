@@ -5,12 +5,11 @@ import { usePathname } from 'next/navigation'
 import { clsx } from 'clsx'
 
 const NAV_ITEMS = [
-  { href: '/',              label: 'Гороскоп',     icon: '☼' },
-  { href: '/chart',         label: 'Карта',        icon: '✶' },
-  { href: '/compatibility', label: 'Союзы',        icon: '♥' },
-  { href: '/tarot',         label: 'Таро',         icon: '🃏' },
-  { href: '/ai',            label: 'Астролог',     icon: '✦' },
-  { href: '/profile',       label: 'Профиль',      icon: '👤' },
+  { href: '/',              label: 'Гороскоп',  icon: '☼' },
+  { href: '/chart',         label: 'Карта',     icon: '✶' },
+  { href: '/compatibility', label: 'Союзы',     icon: '♥' },
+  { href: '/ai',            label: 'Астролог',  icon: '✦' },
+  { href: '/profile',       label: 'Профиль',   icon: '👤' },
 ]
 
 export function BottomNav() {
