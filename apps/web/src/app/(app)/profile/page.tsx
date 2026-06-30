@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiClient } from '@/lib/api-client'
@@ -50,6 +50,7 @@ export default function ProfilePage() {
   const qc = useQueryClient()
   const user = useAuthStore((s) => s.user)
   const logout = useAuthStore((s) => s.logout)
+  const fetchMe = useAuthStore((s) => s.fetchMe)
 
   const [form, setForm] = useState({
     name: user?.name ?? '',
@@ -57,11 +58,24 @@ export default function ProfilePage() {
     birthTime: user?.birthTime ?? '',
     birthPlace: user?.birthPlace ?? '',
   })
+
+  // Sync form when user updates in store (after fetchMe)
+  useEffect(() => {
+    if (user) {
+      setForm({
+        name: user.name ?? '',
+        birthDate: user.birthDate?.split('T')[0] ?? '',
+        birthTime: user.birthTime ?? '',
+        birthPlace: user.birthPlace ?? '',
+      })
+    }
+  }, [user])
   const [saved, setSaved] = useState(false)
 
   const update = useMutation({
     mutationFn: () => apiClient.patch('/users/me', form),
-    onSuccess: () => {
+    onSuccess: async () => {
+      await fetchMe()
       void qc.invalidateQueries({ queryKey: ['natal-chart'] })
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
